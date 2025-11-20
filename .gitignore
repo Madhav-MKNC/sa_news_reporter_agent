@@ -1,4 +1,6 @@
 __pycache__
+DATA
+.gitignore
 .env
 cookies.json
 twitter.cookies
