@@ -1,0 +1,249 @@
+import os
+import time
+import json
+import random
+import requests
+
+from .configs import (
+    BOT_HANDLE,
+    COOKIES_PATH,
+    MENTION_POLL_INTERVAL, 
+    INSIGHT_POST_INTERVAL,
+    LAST_MENTION_FILE
+)
+
+from utils.colored import *
+from utils.prompts import *
+from utils.llms import get_llm_response
+from utils.parser import Parser
+
+from twitter.account import Account
+from news_engine import NewsEngine
+
+
+# --- Auth ---
+if os.path.exists(COOKIES_PATH):
+    account = Account(cookies=COOKIES_PATH)
+else:
+    cprint(f"[ERROR] Cookies file not found at {COOKIES_PATH}. Please provide valid Twitter cookies.", color=Colors.Text.RED)
+    exit(1)
+
+
+# --- Initialize AdjNews ---
+adj_news = NewsEngine()
+
+
+# --- Data Persistence ---
+def get_last_mention_id():
+    if os.path.exists(LAST_MENTION_FILE):
+        with open(LAST_MENTION_FILE, 'r', encoding='utf-8') as f:
+            return f.read().strip()
+    return None
+
+def set_last_mention_id(mention_id):
+    with open(LAST_MENTION_FILE, 'w', encoding='utf-8') as f:
+        f.write(str(mention_id))
+
+
+# # --- Insightful Scheduled Post (1) ---
+# def generate_insight_data():
+#     # Example: fetch latest/highlight market data
+#     # can customize this logic as needed
+#     results = adj_news.list_markets(limit=5, sort_by="volume", sort_dir="desc", include_closed=False, include_resolved=False)
+#     return results
+
+# --- Insightful Scheduled Post (2) ---
+def generate_insight_data():
+    queries = ["AI regulation", "Trump", "Fed interest rates", "elon"]
+    try:
+        response = requests.get("https://trends.google.com/trends/hottrends/visualize/internal/data")
+        if response.status_code == 200:
+            topics = response.json()
+            queries = random.sample(topics, k=min(len(topics), 5))
+    except:
+        pass
+    random.shuffle(queries)
+    for query in queries:
+        results = adj_news.semantic_search(query=query, limit=5)
+        if results: return results
+    return None
+
+
+def generate_insight_tweet():
+    market_data = generate_insight_data()
+    messages = [
+        {"role": "system", "content": POST_SYSTEM_PROMPT},
+        {"role": "user", "content": POST_PROMPT.format(market_data=market_data)}
+    ]
+    response = get_llm_response(messages)
+    # cprint(f"[Raw llm response]\n{response}", color=Colors.Text.WHITE)
+    try:
+        tweet_json = Parser().get_action(response)
+        # cprint(f"[Parsed]\n{json.dumps(dict(tweet_json), indent=4)}", color=Colors.Text.YELLOW)
+        if tweet_json['action'] == 'tweet':
+            return tweet_json['text']
+    except Exception as e:
+        cprint(f"[ERROR] Failed to parse LLM response for scheduled post: {e}", color=Colors.Text.RED)
+    return None
+
+
+def post_insight():
+    cprint("[Insight] Generating tweet text...", color=Colors.Text.WHITE)
+    text = generate_insight_tweet()
+    if not text:
+        cprint("[ERROR] No tweet text generated for scheduled post.", color=Colors.Text.RED)
+        return
+    account = Account(cookies=COOKIES_PATH)
+    response = account.tweet(text)
+    cprint(f"[account.tweet] Response:\n{json.dumps(dict(response), indent=4)}", color=Colors.Text.CYAN)
+    cprint(f"[Insight Posted]\n{text}", color=Colors.Text.LGREEN)
+
+
+# --- Mention Handling ---
+def fetch_new_mentions():
+    cprint("[Mentions] Fetching new mentions...", color=Colors.Text.BOLD)
+    last_id = get_last_mention_id()
+    account = Account(cookies=COOKIES_PATH)
+    notifications = account.notifications(type='mentions')
+    print(notifications)
+    with open('notifications.json', 'w', encoding='utf-8') as f:
+        json.dump(notifications, f, indent=4, ensure_ascii=False)
+    mentions = notifications.get('globalObjects', {}).get('tweets', {})
+    # cprint(notifications, color=Colors.Text.MAGENTA)
+    new_mentions = []
+    for tweet_id, tweet in mentions.items():
+        if last_id and int(tweet_id) <= int(last_id):
+            continue
+        if f'@{BOT_HANDLE.lower()}' in tweet.get('full_text', '').lower():
+            new_mentions.append((tweet_id, tweet))
+    # Sort by tweet_id ascending (oldest first)
+    new_mentions.sort(key=lambda x: int(x[0]))
+    return new_mentions
+
+
+# --- Mention Reply Logic ---
+def handle_mention(tweet_id, tweet):
+    cprint(f"[Mention] New mention from @{tweet.get('user', {}).get('screen_name', '')}: {tweet.get('full_text', '')}", color=Colors.Text.MAGENTA)
+    author_handle = tweet.get('user', {}).get('screen_name', '')
+    tweet_text = tweet.get('full_text', '')
+
+    messages = [
+        {"role": "system", "content": REPLY_SYSTEM_PROMPT},
+        {"role": "user", "content": REPLY_PROMPT.format(author_handle=author_handle, tweet_text=tweet_text)}
+    ]
+    response = get_llm_response(messages)
+    messages.append({"role": "assistant", "content": response})
+    # cprint(f"[Raw llm response]\n{response}", color=Colors.Text.WHITE)
+
+    try:
+        action_json = Parser().get_action(response)
+        # cprint(f"[Parsed]\n{json.dumps(dict(action_json), indent=4)}", color=Colors.Text.YELLOW)
+    except Exception as e:
+        cprint(f"[ERROR] Failed to parse LLM response: {e}", color=Colors.Text.RED)
+        return
+
+    if action_json['action'] == 'tweet':
+        reply_text = action_json['text']
+        account = Account(cookies=COOKIES_PATH)
+        response = account.reply(reply_text, tweet_id=int(tweet_id))
+        cprint(f"[account.tweet] Response:\n{json.dumps(dict(response), indent=4)}", color=Colors.Text.CYAN)
+        cprint(f"[Reply] @{author_handle}: {reply_text}", color=Colors.Text.LGREEN)
+
+    elif action_json['action'] == 'research':
+        cprint(f"[Research] Function: {action_json['function']}", color=Colors.Text.YELLOW)
+        params = action_json['params']
+
+        if action_json['function'] == 'semantic_search':
+            results = adj_news.semantic_search(
+                query=params.get('query'),
+                limit=int(params.get('limit', 10)),
+                include_context=bool(params.get('include_context', False))
+            )
+
+        elif action_json['function'] == 'list_markets':
+            results = adj_news.list_markets(
+                limit=params.get('limit', 5),
+                offset=params.get('offset', 0),
+                platform=params.get('platform', None),
+                status=params.get('status', None),
+                category=params.get('category', None),
+                market_type=params.get('market_type', None),
+                keyword=params.get('keyword', None),
+                tag=params.get('tag', None),
+                created_after=params.get('created_after', None),
+                created_before=params.get('created_before', None),
+                probability_min=params.get('probability_min', None),
+                probability_max=params.get('probability_max', None),
+                sort_by=params.get('sort_by', None),
+                sort_dir=params.get('sort_dir', None),
+                include_closed=params.get('include_closed', None),
+                include_resolved=params.get('include_resolved', None)
+            )
+
+        elif action_json['function'] == "get_market_news":
+            results = adj_news.get_market_news(
+                market = params.get('market'),
+                days = int(params.get('days', 7)),
+                limit = int(params.get('limit', 5)),
+                exclude_domains = params.get('exclude_domains', None)
+            )
+
+        else:
+            cprint(f"[ERROR] Unknown research function: {action_json['function']}", color=Colors.Text.RED)
+            return
+
+        messages.append(
+            {
+                "role": "user", 
+                "content": REPLY_FOLLOW_UP_PROMPT.format(
+                    action_results=str(results), 
+                    author_handle=author_handle
+                )
+            }
+        )
+        reply = get_llm_response(messages)
+        cprint(f"[Follow-up LLM response]\n{reply}", color=Colors.Text.YELLOW)
+
+        try:
+            tweet_json = Parser().get_action(reply)
+            # cprint(f"[Parsed]\n{json.dumps(dict(tweet_json), indent=4)}", color=Colors.Text.YELLOW)
+            if tweet_json['action'] == 'tweet':
+                account = Account(cookies=COOKIES_PATH)
+                response = account.reply(tweet_json['text'], tweet_id=int(tweet_id))
+                cprint(f"[account.tweet] Response:\n{json.dumps(dict(response), indent=4)}", color=Colors.Text.CYAN)
+                cprint(f"[Reply] @{author_handle}: {tweet_json['text']}", color=Colors.Text.LGREEN)
+        except Exception as e:
+            cprint(f"[ERROR] Failed to parse follow-up LLM reply: {e}", color=Colors.Text.RED)
+
+
+# --- Main Loop ---
+def main():
+    last_insight_time = 0
+    post_num = 1
+    try:
+        while True:
+            # Post insight if interval elapsed
+            start = time.time()
+            if start - last_insight_time > INSIGHT_POST_INTERVAL:
+                cprint(f"--- insightful post {post_num} ---", color=Colors.Text.BOLD)
+                post_insight()
+                last_insight_time = start
+            # Check for new mentions 
+            new_mentions = fetch_new_mentions()
+            for tweet_id, tweet in new_mentions:
+                handle_mention(tweet_id, tweet)
+                set_last_mention_id(tweet_id) 
+            end = time.time() 
+            time.sleep(max(0, MENTION_POLL_INTERVAL - (end - start)))
+    except KeyboardInterrupt:
+        cprint("[INFO] Stopping bot due to keyboard interrupt.", color=Colors.Text.RED)
+
+
+# # --- Main Loop ---
+# def main():
+#     post_insight()
+
+
+if __name__ == "__main__":
+    main()
+

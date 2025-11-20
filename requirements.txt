@@ -1,0 +1,11 @@
+aiofiles==24.1.0
+httpx==0.28.1
+nest_asyncio==1.5.8
+openai==1.88.0
+orjson==3.10.18
+python-dotenv==1.1.0
+Requests==2.32.4
+tqdm==4.65.0
+tqdm==4.66.5
+websockets==15.0.1
+twikit==2.3.3
