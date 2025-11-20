@@ -5,6 +5,8 @@ import random
 import asyncio
 import requests
 
+from twikit import Client
+
 from .configs import (
     BOT_HANDLE,
     USERNAME,
@@ -15,14 +17,11 @@ from .configs import (
     INSIGHT_POST_INTERVAL,
     LAST_MENTION_FILE
 )
-
-from utils.colored import cprint, Colors
-from utils.prompts import *
-from utils.llms import get_llm_response
-from utils.parser import Parser
-
-from twikit import Client
 from news_engine import NewsEngine
+from llms import get_llm_response
+from llms.prompts import *
+from llms.parser import Parser
+from utils.colored import cprint, Colors
 
 
 # --- Auth ---

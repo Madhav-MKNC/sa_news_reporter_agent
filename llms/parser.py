@@ -74,7 +74,7 @@ class Parser:
         if self.__is_valid_data(response=response_json, expected_keys=expected_keys):
             return response_json
         else:
-            cprint("Invalid JSON format: Missing expected keys or invalid value types.", color=RED)
+            cprint("Invalid JSON format: Missing expected keys or invalid value types.", color=Colors.Text.RED)
             return {}
     
     def get_action(self, raw_response: str) -> dict:
@@ -134,6 +134,6 @@ class Parser:
             return response_json
 
         else:
-            cprint("Invalid JSON format: Missing expected keys or invalid value types.", color=RED)
+            cprint("Invalid JSON format: Missing expected keys or invalid value types.", color=Colors.Text.RED)
             return response_json
 
