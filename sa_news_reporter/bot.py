@@ -44,18 +44,19 @@ def set_last_mention_id(mention_id):
 
 
 async def twikit_login():
-    # if os.path.exists(COOKIES_PATH):
-    #     await client.load_cookies(COOKIES_PATH)
-    #     try:
-    #         await client.refresh_auth()
-    #         return
-    #     except Exception:
-    #         pass
-    await client.login(
-        auth_info_1=USERNAME,
-        auth_info_2=EMAIL,
-        password=PASSWORD,
-    )
+    if os.path.exists(COOKIES_PATH):
+        client.load_cookies(COOKIES_PATH)  # No await needed
+        try:
+            await client.refresh_auth()  # This is asynchronous, so we keep await here
+            return
+        except Exception:
+            pass
+    # You can use client.login() if needed
+    # await client.login(
+    #     auth_info_1=USERNAME,
+    #     auth_info_2=EMAIL,
+    #     password=PASSWORD,
+    # )
     # await client.save_cookies(COOKIES_PATH)
 
 
@@ -106,7 +107,7 @@ async def post_insight():
 
 # --- Mention Handling --- (3)
 async def fetch_new_mentions():
-    cprint("[Mentions] Fetching new mentions...", color=Colors.Text.BOLD)
+    cprint("[Mentions] Fetching new mentions...", color=Colors.Text.YELLOW)
     last_id = get_last_mention_id()
     result = await client.search_tweet(f"@{BOT_HANDLE}", "Latest", count=20)
     new_mentions = []
@@ -223,6 +224,60 @@ async def handle_mention(tweet_id, tweet):
             cprint(f"[ERROR] Failed to reply: {e}", color=Colors.Text.RED)
 
 
+# --- Function to post a "Hello World" tweet ---
+async def post_hello_world():
+    hello_text = "Hello, World! #HelloWorld"
+    await client.create_tweet(text=hello_text)
+    cprint(f"[Hello World Posted]\n{hello_text}", color=Colors.Text.LGREEN)
+
+# --- Function to fetch latest trending news from Explore section using Twikit ---
+# --- Function to search for trending news using Twikit ---
+# --- Function to search for trending news using Twikit ---
+# --- Function to search for trending news using Twikit ---
+async def search_trending_news():
+    try:
+        # Search for tweets using popular trending keywords (can be adjusted to match your needs)
+        trending_keywords = ["#BreakingNews", "#Trending", "#News", "#WorldNews", "#TopStory"]
+        trending_news = []
+
+        for keyword in trending_keywords:
+            try:
+                # Search for tweets related to the keyword (you can change count to adjust the number of tweets to fetch)
+                search_results = await client.search_tweet(keyword, "Latest", count=5)
+
+                # Log the search results to see the tweets fetched
+                cprint(f"[INFO] Searching for keyword: {keyword}", color=Colors.Text.YELLOW)
+                
+                if not search_results:
+                    cprint(f"[INFO] No results found for keyword: {keyword}", color=Colors.Text.RED)
+                    continue
+
+                for tweet in search_results:
+                    # Log the tweet content for debugging
+                    tweet_text = tweet.full_text or tweet.text
+                    cprint(f"[TWEET LOG] {tweet.user.screen_name}: {tweet_text}", color=Colors.Text.CYAN)
+
+                    tweet_data = {
+                        "tweet": tweet_text,
+                        "author": tweet.user.screen_name,
+                        "url": f"https://twitter.com/{tweet.user.screen_name}/status/{tweet.id}"
+                    }
+                    trending_news.append(tweet_data)
+
+            except Exception as search_error:
+                cprint(f"[ERROR] Failed to search tweets for keyword '{keyword}': {search_error}", color=Colors.Text.RED)
+        
+        if not trending_news:
+            cprint("[ERROR] No trending news found.", color=Colors.Text.RED)
+
+        return trending_news
+
+    except Exception as e:
+        cprint(f"[ERROR] Failed to search trending news: {e}", color=Colors.Text.RED)
+        return None
+
+
+
 # --- Main Loop ---
 async def main():
     await twikit_login()
@@ -230,20 +285,24 @@ async def main():
     post_num = 1
     try:
         while True:
-            # Post insight if interval elapsed
-            start = time.time()
-            if start - last_insight_time > INSIGHT_POST_INTERVAL:
-                cprint(f"--- insightful post {post_num} ---", color=Colors.Text.BOLD)
-                await post_insight()
-                last_insight_time = start
-                post_num += 1
-            # Check for new mentions
-            new_mentions = await fetch_new_mentions()
-            for tweet_id, tweet in new_mentions:
-                await handle_mention(tweet_id, tweet)
-                set_last_mention_id(tweet_id)
-            end = time.time()
-            await asyncio.sleep(max(0, MENTION_POLL_INTERVAL - (end - start)))
+            # Post a Hello World tweet
+            await search_trending_news()
+            await asyncio.sleep(100)
+
+            # # Post insight if interval elapsed
+            # start = time.time()
+            # if start - last_insight_time > INSIGHT_POST_INTERVAL:
+            #     cprint(f"--- insightful post {post_num} ---", color=Colors.Text.YELLOW)
+            #     await post_insight()
+            #     last_insight_time = start
+            #     post_num += 1
+            # # Check for new mentions
+            # new_mentions = await fetch_new_mentions()
+            # for tweet_id, tweet in new_mentions:
+            #     await handle_mention(tweet_id, tweet)
+            #     set_last_mention_id(tweet_id)
+            # end = time.time()
+            # await asyncio.sleep(max(0, MENTION_POLL_INTERVAL - (end - start)))
     except KeyboardInterrupt:
         cprint("[INFO] Stopping bot due to keyboard interrupt.", color=Colors.Text.RED)
 
