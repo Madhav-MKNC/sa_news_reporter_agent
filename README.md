@@ -11,3 +11,10 @@ and [twikit](https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=h
 
 - https://github.com/d60/twikit/blob/main/twikit/trend.py
 - https://twikit.readthedocs.io/en/latest/twikit.html#twikit.trend.Location.get_trends
+
+- https://trends.google.com/
+- https://x.com/explore/tabs/trending
+- https://x.com/explore/tabs/news
+- https://x.com/sidhant
+- https://x.com/shivaroor
+

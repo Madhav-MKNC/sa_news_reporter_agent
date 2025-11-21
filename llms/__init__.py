@@ -61,6 +61,7 @@ class GroqLLM:
 
 class ChutesAI:
     # model = "unsloth/gemma-2-9b-it"
+    # model = "unsloth/gemma-3-4b-it"
     # model = "Qwen/Qwen3-30B-A3B"
     # model = "nvidia/Llama-3_1-Nemotron-Ultra-253B-v1"
     # model = "microsoft/MAI-DS-R1-FP8"
