@@ -1,9 +1,8 @@
 # LLM calls
 
-import openai
 from groq import Groq, RateLimitError
-
-from utils.colored import *
+from .chutes_llm import ChutesLLM, ChutesLLMError
+from utils.colored import cprint, Colors
 
 import os
 from dotenv import load_dotenv
@@ -60,8 +59,54 @@ class GroqLLM:
             return self.get_llm_response(messages=messages, model=model)
 
 
+class ChutesAI:
+    # model = "unsloth/gemma-2-9b-it"
+    # model = "Qwen/Qwen3-30B-A3B"
+    # model = "nvidia/Llama-3_1-Nemotron-Ultra-253B-v1"
+    # model = "microsoft/MAI-DS-R1-FP8"
+    # model = "chutesai/Mistral-Small-3.1-24B-Instruct-2503"
+    # model = "chutesai/Llama-4-Maverick-17B-128E-Instruct-FP8"
+    # model = "deepseek-ai/DeepSeek-V3-0324"
+    # model = "Qwen/Qwen3-1.7B"
+    # model = "chutesai/Llama-3.1-405B-FP8"
+    model = "openai/gpt-oss-20b"
+
+    def __init__(self):
+        self.client = ChutesLLM(api_key=os.getenv("CHUTES_API_KEY"))
+
+    def get_llm_response(self, messages, model=model):
+        response = self.client.chat.completions.create(
+            messages = messages,
+            model = model or self.model,
+            temperature = 0.7,
+            # max_tokens = 1500,
+            # json_mode = True
+        )
+
+        try:
+            output = response['choices'][0]['message']['content'].strip()
+            # cprint(json.dumps(json.loads(output), indent=4), color=CYAN)
+
+        except ChutesLLMError as e:
+            print(f"=== ChutesLLMError in chat completion ===")
+            print(f"error: {e}")
+            print(f"response: {response}")
+            print("==========================================")
+            output = ""
+
+        except Exception as e:
+            print(f"=== Exception in chat completion error ===")
+            print(f"error: {e}")
+            print(f"response: {response}")
+            print("===========================================")
+            output = ""
+
+        return output
+
+
 # llm
-llm = GroqLLM()
+# llm = GroqLLM()
+llm = ChutesAI()
 
 def get_llm_response(messages, model=None):
     try:
