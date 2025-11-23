@@ -2,7 +2,7 @@
 
 from groq import Groq, RateLimitError
 from .chutes_llm import ChutesLLM, ChutesLLMError
-from utils.colored import cprint, Colors
+from app.colored import cprint, Colors
 
 import os
 from dotenv import load_dotenv

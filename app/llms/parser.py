@@ -1,6 +1,6 @@
 import re
 import json
-from utils.colored import *
+from app.colored import *
 
 
 # Output parser

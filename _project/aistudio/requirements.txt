@@ -1,6 +1,0 @@
-﻿streamlit
-twikit
-crewai
-crewai-tools
-langchain-groq
-python-dotenv

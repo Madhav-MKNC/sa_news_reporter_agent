@@ -1,7 +1,6 @@
 ﻿import streamlit as st
 import asyncio
 import urllib.parse
-from backend import get_twitter_trends, run_editorial_crew
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -34,7 +33,7 @@ with col1:
             
             st.write("📡 Connecting to Twitter...")
             # Run async scraper
-            raw_news = asyncio.run(get_twitter_trends())
+            raw_news = []
             
             if raw_news and isinstance(raw_news[0], dict) and "error" in raw_news[0]:
                 st.error(raw_news[0]['error'])
@@ -48,12 +47,12 @@ with col1:
                 
                 # Generate 2 variations
                 try:
-                    draft1 = run_editorial_crew(raw_news)
+                    draft1 = "run_editorial_crew(raw_news)"
                     st.session_state.drafts.append(draft1)
                     
                     # If we have enough news, generate a second different one
                     if len(raw_news) > 2:
-                        draft2 = run_editorial_crew(raw_news[::-1]) # Reverse list context
+                        draft2 = "run_editorial_crew(raw_news[::-1]) # Reverse list context"
                         st.session_state.drafts.append(draft2)
                         
                     status.update(label="Drafts Ready!", state="complete", expanded=False)
