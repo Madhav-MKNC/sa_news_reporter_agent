@@ -2,29 +2,67 @@
 
 import requests
 
+import xml.etree.ElementTree as ET
+
 from app.colored import cprint, Colors
 
 
 class NewsEngine:
     def __init__(self):
-        pass
-    
-    def get_trending_news_raw(self):
+        cprint(" [ENGINE] NewsEngine Subsystem Initialized (RSS Mode).", color=Colors.Text.CYAN)
+        # Namespace required to parse Google's custom XML tags
+        self.namespaces = {'ht': 'https://trends.google.com/trends/trendingsearches/daily'}
+
+    def get_trending_news_raw(self, verbose=True):
+        if verbose: cprint(" [ENGINE] Connecting to Google Trends RSS Feed...", color=Colors.Text.BLUE)
+        
         trending_news = []
+        # The RSS feed is the most stable endpoint. geo=US can be changed to your target region.
+        url = "https://trends.google.com/trends/trendingsearches/daily/rss?geo=US"
+        
         try:
-            response = requests.get("https://trends.google.com/trends/hottrends/visualize/internal/data")
+            response = requests.get(url)
+            if verbose: cprint(f" [ENGINE] HTTP Response: {response.status_code}", color=Colors.Text.YELLOW)
+            
             if response.status_code == 200:
-                topics = response.json()
-                for topic in topics:
+                root = ET.fromstring(response.content)
+                items = root.findall('.//item')
+                
+                if verbose: cprint(f" [ENGINE] Feed parsed. Found {len(items)} trending topics.", color=Colors.Text.MAGENTA)
+                
+                for item in items:
+                    title = item.find('title').text
+                    
+                    # Extract news articles from the custom namespace tags
+                    news_items_xml = item.findall('ht:news_item', self.namespaces)
+                    articles = []
+                    
+                    for news in news_items_xml:
+                        article_title = news.find('ht:news_item_title', self.namespaces).text
+                        article_url = news.find('ht:news_item_url', self.namespaces).text
+                        articles.append({
+                            "title": article_title,
+                            "url": article_url
+                        })
+
+                    # Map to your existing structure
                     news_item = {
-                        "title": topic.get("title"),
-                        "url": topic.get("newsUrl"),
-                        "articles": topic.get("articles", [])
+                        "title": title,
+                        # Use the first article's URL as the main URL, or None
+                        "url": articles[0]['url'] if articles else None,
+                        "articles": articles
                     }
+                    
                     trending_news.append(news_item)
+                    if verbose: cprint(f" [ENGINE] Extracted: {title}", color=Colors.Text.Bright.BLACK)
+
+            else:
+                cprint(f" [ENGINE] Error: RSS Feed returned status {response.status_code}", color=Colors.Text.RED)
+
         except Exception as e:
             cprint(f"[NEWS ENGINE] Failed to fetch trending news: {e}", color=Colors.Text.RED)
         
+        if verbose: cprint(f" [ENGINE] Data collection complete. Yielding {len(trending_news)} items.", color=Colors.Text.GREEN)
         return trending_news
 
 
