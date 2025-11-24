@@ -1,6 +1,7 @@
 import os
 import json
 import asyncio
+from time import sleep
 
 from twikit import Client
 
@@ -74,9 +75,9 @@ async def main():
     await twikit_login()
     try:
         while True:
-            cprint("[MAAL] Updating maal...", color=Colors.Text.CYAN)
+            cprint("[MAAL] Updating maal...", color=Colors.Text.YELLOW)
             update_maal()
-            await asyncio.sleep(NEWS_FETCH_INTERVAL)
+            sleep(NEWS_FETCH_INTERVAL)
     except KeyboardInterrupt:
         cprint("[END] Stopping bot due to keyboard interrupt.", color=Colors.Text.RED)
 
