@@ -11,15 +11,15 @@ from twikit import Client
 from app.configs import (
     BOT_HANDLE,
     COOKIES_PATH,
-    NEWS_FETCH_INTERVAL
+    NEWS_FETCH_INTERVAL,
+    NEWS_DATA_STORE_DIR
 )
 from app.news_engine import NewsEngine
 from app.llms import get_llm_response
 from app.llms.prompts import *
 from app.llms.parser import Parser
-from app.models import NewsModel
+from app.models import NewsItemModel
 from app.colored import cprint, Colors
-from app.utils import generate_filename
 
 
 # --- Auth ---
@@ -46,30 +46,37 @@ async def twikit_login():
     # await client.save_cookies(COOKIES_PATH)
 
 
+def write_and_save_full_news(raw_news: dict, verbose=True):
+    messages = [
+        {"role": "system", "content": NEWS_GENERATE_SYSTEM_PROMPT},
+        {"role": "user", "content": NEWS_GENERATE_PROMPT.format(raw_news=raw_news)}
+    ]
+
+    response = get_llm_response(messages)
+    news_json = Parser().get_news_json(response)
+    
+    if verbose:
+        cprint(f"[LLM] Raw Response:\n{response}", color=Colors.Text.CYAN)
+        cprint(f"[PARSER] Parsed News JSON:\n{json.dumps(dict(news_json), indent=4)}", color=Colors.Text.MAGENTA)
+
+    news_item = NewsItemModel(
+        headline_str=news_json.get("headline_str"),
+        content_str=news_json.get("content_str"),
+        tags_list=news_json.get("tags_list", [])
+    )
+    news_item.create_dir()
+    news_item.save_json()
+    
+    if verbose:
+        cprint(f"[MAAL] Saved News Item: {news_item.id}", color=Colors.Text.GREEN)
+
+
 # --- Get Trending News ---
 def update_maal(verbose=True):
-    trending_news = news_engine.get_trending_news()
-
-    # store this in the datastore
-    timestamp = datetime.now().strftime("%I_%M_%p_%d_%m_%Y")
-    NEWS_DATA_STORE_DIR = "/data/"
-    filepath = f"{NEWS_DATA_STORE_DIR.rstrip("/")}/{timestamp}.json"
-
-    if not os.path.exists(NEWS_DATA_STORE_DIR):
-        if verbose: cprint(f"[INFO] Creating Path: {NEWS_DATA_STORE_DIR}", color=Colors.Text.YELLOW) # verbosity
-        os.makedirs(NEWS_DATA_STORE_DIR)
-
-    if verbose: cprint(f"[INFO] Creating File: {filename}", color=Colors.Text.YELLOW) # verbosity
-
-    filename = generate_filename()
-    data = NewsModel(
-        # NOTE: format the data
-    )
-    json_data = data.to_json()
-    with open(filepath, 'w', encoding='utf-8') as file:
-        json.dump(json_data, file)
-
-    return trending_news
+    trending_news = news_engine.get_trending_news_raw()
+    for raw_news in trending_news:
+        if verbose: cprint(f"[MAAL] Processing News: {raw_news['headline_str']}", color=Colors.Text.GREEN)
+        write_and_save_full_news(raw_news, verbose=verbose)
 
 
 # --- Main Loop ---
