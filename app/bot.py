@@ -1,22 +1,16 @@
 import os
-import time
 import json
-import random
 import asyncio
-import requests
-import datetime
 
 from twikit import Client
 
 from app.configs import (
-    BOT_HANDLE,
     COOKIES_PATH,
     NEWS_FETCH_INTERVAL,
-    NEWS_DATA_STORE_DIR
 )
 from app.news_engine import NewsEngine
 from app.llms import get_llm_response
-from app.llms.prompts import *
+from app.llms.prompts import NEWS_GENERATE_SYSTEM_PROMPT, NEWS_GENERATE_PROMPT
 from app.llms.parser import Parser
 from app.models import NewsItemModel
 from app.colored import cprint, Colors
@@ -59,11 +53,7 @@ def write_and_save_full_news(raw_news: dict, verbose=True):
         cprint(f"[LLM] Raw Response:\n{response}", color=Colors.Text.CYAN)
         cprint(f"[PARSER] Parsed News JSON:\n{json.dumps(dict(news_json), indent=4)}", color=Colors.Text.MAGENTA)
 
-    news_item = NewsItemModel(
-        headline_str=news_json.get("headline_str"),
-        content_str=news_json.get("content_str"),
-        tags_list=news_json.get("tags_list", [])
-    )
+    news_item = NewsItemModel.from_dict(news_json)
     news_item.create_dir()
     news_item.save_json()
     

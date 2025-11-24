@@ -1,6 +1,6 @@
 import re
 import json
-from app.colored import *
+from app.colored import cprint, Colors
 
 
 # Output parser
@@ -66,74 +66,44 @@ class Parser:
         try:
             response_json = self.__extract_json_from_text(raw_input)
         except Exception as e:
-            cprint("[llm output parsing failed]", str(e))
+            cprint(f"[PARSER] Error extracting JSON: {e}", color=Colors.Text.RED)
             response_json = {
                 "what": ""
             }
 
-        if self.__is_valid_data(response=response_json, expected_keys=expected_keys):
-            return response_json
-        else:
-            cprint("Invalid JSON format: Missing expected keys or invalid value types.", color=Colors.Text.RED)
-            return {}
-    
-    def get_action(self, raw_response: str) -> dict:
-        expected_keys_for_research = {
-            'action',
-            'function',
-            'params'
-        }
-        
-        expected_params = {
-            "query",
-            "limit",
-            "include_context",
-            "limit",
-            "offset",
-            "platform",
-            "status",
-            "category",
-            "market_type",
-            "keyword",
-            "tag",
-            "created_after",
-            "created_before",
-            "probability_min",
-            "probability_max",
-            "sort_by",
-            "sort_dir",
-            "include_closed",
-            "include_resolved",
-            "market",
-            "days",
-            "limit",
-            "exclude_domains"
-        }
+        if not self.__is_valid_data(response=response_json, expected_keys=expected_keys):
+            cprint("[PARSER] Invalid JSON format: Missing expected keys or invalid value types.", color=Colors.Text.RED)
+            response_json = {
+                "what": ""
+            }
 
-        expected_keys_for_tweet = {
-            'action',
-            'text'
+        return response_json
+    
+    # The following is a dummpy method
+    def get_news_json(self, raw_input: str) -> dict:
+        expected_keys = {
+            'headline_str',
+            'content_str',
+            'tags_list'
         }
 
         try:
-            response_json = self.__extract_json_from_text(raw_response)
+            response_json = self.__extract_json_from_text(raw_input)
         except Exception as e:
-            cprint("[llm output parsing failed]", str(e))
+            cprint(f"[PARSER] Error extracting JSON: {e}", color=Colors.Text.RED)
             response_json = {
-                "error": str(e)
+                'headline_str': '',
+                'content_str': '',
+                'tags_list': []
             }
 
-        # check if research json
-        if self.__is_valid_data(response=response_json, expected_keys=expected_keys_for_research):
-            params = response_json.get("params")
-            if params.keys() < expected_params:
-                return response_json
+        if not self.__is_valid_data(response=response_json, expected_keys=expected_keys):
+            cprint("[PARSER] Invalid JSON format: Missing expected keys or invalid value types.", color=Colors.Text.RED)
+            response_json = {
+                'headline_str': '',
+                'content_str': '',
+                'tags_list': []
+            }
 
-        # check if tweet json
-        elif self.__is_valid_data(response=response_json, expected_keys=expected_keys_for_tweet):
-            return response_json
-
-        else:
-            cprint("Invalid JSON format: Missing expected keys or invalid value types.", color=Colors.Text.RED)
-            return response_json
-
+        return response_json
+    
