@@ -12,11 +12,15 @@ import re
 from pytrends.request import TrendReq
 from pytrends.exceptions import ResponseError
 
+from app.colored import cprint, Colors
+
+
 def get_trend_keywords(top_n=40, dedupe=True):
     """
     Returns a list of keywords from Google Trends (India), prioritizing most recent.
     Robust fallback: realtime -> daily trending.
     """
+    return ['pm modi', 'market']
     pytrends = TrendReq(hl='en-US', tz=330)
 
     titles = []
@@ -157,12 +161,19 @@ def guess_category(keyword: str, text: str):
     return "other"
 
 # --- 4) Orchestrator: trends -> twitter -> raw_news list ---
-async def build_trends_news_items(client: Client, top_n_keywords=30, per_keyword=6):
+async def build_trends_news_items(client: Client, top_n_keywords=30, per_keyword=6, verbose=True):
     keywords = get_trend_keywords(top_n=top_n_keywords)
+    if verbose:
+        cprint(f" [TRENDS] Retrieved {len(keywords)} trending keywords.", color=Colors.Text.CYAN)
     clusters = await search_twitter_for_keywords(client, keywords, per_keyword=per_keyword)
+    if verbose:
+        total_tweets = sum(len(tws) for tws in clusters.values())
+        cprint(f" [TWITTER] Retrieved a total of {total_tweets} tweets across {len(clusters)} keywords.", color=Colors.Text.CYAN)
     raw_items = []
     for kw, tws in clusters.items():
         if not tws: 
             continue
         raw_items.append(make_raw_news_from_cluster(kw, tws, top_k=min(5, len(tws))))
+        if verbose:
+            cprint(f" [CLUSTER] Keyword '{kw}' -> {len(tws)} tweets -> 1 raw news item.", color=Colors.Text.CYAN)
     return raw_items

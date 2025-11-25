@@ -35,7 +35,8 @@ async def twikit_login():
             await client.refresh_auth()  # This is asynchronous, so we keep await here
             cprint(" [AUTH] Session refreshed successfully.", color=Colors.Text.GREEN)
             return
-        except Exception:
+        except Exception as e:
+            cprint(f" [AUTH] Exception: {e}", color=Colors.Text.YELLOW)
             cprint(" [AUTH] Failed to refresh session.", color=Colors.Text.RED)
             pass
     else:
@@ -88,6 +89,8 @@ def update_maal(verbose=True):
 
 async def update_from_trends(verbose=True):
     raw_items = await build_trends_news_items(client, top_n_keywords=30, per_keyword=6)
+    if verbose:
+        cprint(f" [ENGINE] Retrieved {len(raw_items)} news items from trends.", color=Colors.Text.GREEN)
     for raw_news in raw_items:
         if verbose:
             cprint(f"[MAAL] From Trends kw='{raw_news['keyword']}'", color=Colors.Text.GREEN)
