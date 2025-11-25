@@ -109,7 +109,7 @@ async def main():
                 # Generate the # symbols, starting with NEWS_FETCH_INTERVAL and decreasing
                 hashes = "#" * i
                 # Print the countdown with the decreasing number of hashes
-                print(f"{hashes:<{NEWS_FETCH_INTERVAL}} {i:0{len(str(NEWS_FETCH_INTERVAL))}d} seconds...", end='\r')
+                print(f"  {i:0{len(str(NEWS_FETCH_INTERVAL))}d} seconds...", end='\r')
                 time.sleep(1)
     except KeyboardInterrupt:
         cprint("[END] Stopping bot due to keyboard interrupt.", color=Colors.Text.RED)

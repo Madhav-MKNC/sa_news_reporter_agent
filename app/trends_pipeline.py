@@ -186,7 +186,7 @@ async def search_trending_news_on_x(client: Client, per_keyword=5, min_like=20, 
       - Output: list of raw_news dicts (same schema as make_raw_news_from_cluster)
     Internals: searches fixed trending hashtags instead of Google Trends.
     """
-    trending_keywords = ["#BreakingNews", "#Trending", "#News", "#WorldNews", "#TopStory"]
+    trending_keywords = ["#BreakingNews", "#Karnataka"]
 
     clusters = defaultdict(list)
 
@@ -206,32 +206,22 @@ async def search_trending_news_on_x(client: Client, per_keyword=5, min_like=20, 
 
         for tw in tweets:
             try:
-                if not isinstance(tw, Tweet):
-                    continue
-                if not getattr(tw, "text", None):
-                    continue
-                if (getattr(tw, "favorite_count", 0) or 0) < min_like and \
-                   (getattr(tw, "retweet_count", 0) or 0) < min_rt:
+                text = getattr(tw, "full_text", None) or getattr(tw, "text", None)
+                if not text:
                     continue
 
-                txt = tw.text.replace("\n", " ").strip()
-                media_urls = []
-                if getattr(tw, "media", None):
-                    for m in tw.media:
-                        u = getattr(m, "media_url_https", None) or getattr(m, "url", None)
-                        if u:
-                            media_urls.append(u)
+                if (tw.favorite_count or 0) < min_like and (tw.retweet_count or 0) < min_rt:
+                    continue
 
                 clusters[keyword].append({
                     "id": str(tw.id),
-                    "text": txt,
-                    "author": getattr(tw.user, "screen_name", None),
-                    "likes": int(getattr(tw, "favorite_count", 0) or 0),
-                    "retweets": int(getattr(tw, "retweet_count", 0) or 0),
-                    "replies": int(getattr(tw, "reply_count", 0) or 0),
-                    "timestamp": tw.created_at.isoformat() if getattr(tw, "created_at", None) else None,
-                    "url": f"https://x.com/{tw.user.screen_name}/status/{tw.id}" if getattr(tw, "user", None) else None,
-                    "media_urls": media_urls
+                    "text": text.replace("\n", " ").strip(),
+                    "author": tw.user.screen_name,
+                    # "likes": int(tw.favorite_count or 0),
+                    # "retweets": int(tw.retweet_count or 0),
+                    # "replies": int(tw.reply_count or 0),
+                    "timestamp": tw.created_at.isoformat() if tw.created_at else None,
+                    "url": f"https://x.com/{tw.user.screen_name}/status/{tw.id}"
                 })
             except Exception:
                 continue
