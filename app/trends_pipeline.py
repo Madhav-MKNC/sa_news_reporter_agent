@@ -191,6 +191,12 @@ async def search_trending_news_on_x(client: Client, per_keyword=5, min_like=20, 
 
     clusters = defaultdict(list)
 
+    def decode_unicode(text):
+        """
+        Helper function to decode unicode escape sequences in text.
+        """
+        return bytes(text, "utf-8").decode("unicode_escape")
+
     for keyword in trending_keywords:
         try:
             tweets = await client.search_tweet(keyword, "Top", count=per_keyword)
@@ -210,15 +216,18 @@ async def search_trending_news_on_x(client: Client, per_keyword=5, min_like=20, 
                 text = getattr(tw, "full_text", None) or getattr(tw, "text", None)
                 if not text:
                     if verbose:
-                        cprint(f"   [SKIP] No text in tweet {tw.id}", color=Colors.Text.RED)
+                        cprint(f"   [SKIP] No text in tweet {tw.id}", color=Colors.Text.YELLOW)
                     continue
+
+                # Decode Unicode escape sequences (including emojis)
+                text = decode_unicode(text)
 
                 likes = tw.favorite_count or 0
                 rts = tw.retweet_count or 0
 
                 if likes < min_like and rts < min_rt:
                     if verbose:
-                        cprint(f"   [SKIP] Low engagement {tw.id} (likes={likes}, rts={rts})", color=Colors.Text.RED)
+                        cprint(f"   [SKIP] Low engagement {tw.id} (likes={likes}, rts={rts})", color=Colors.Text.YELLOW)
                     continue
 
                 if verbose:
@@ -228,19 +237,15 @@ async def search_trending_news_on_x(client: Client, per_keyword=5, min_like=20, 
                     "id": str(tw.id),
                     "text": text.replace("\n", " ").strip(),
                     "author": tw.user.screen_name,
-                    # "likes": likes,
-                    # "retweets": rts,
-                    # "replies": int(tw.reply_count or 0),
+                    "likes": likes,
+                    "retweets": rts,
+                    "replies": int(tw.reply_count or 0),
                     "timestamp": (tw.created_at if isinstance(tw.created_at, str) else (tw.created_at.isoformat() if tw.created_at else None)),
                     "url": f"https://x.com/{tw.user.screen_name}/status/{tw.id}"
                 })
             except Exception as e:
                 cprint(f"   [ERR] Failed to process tweet: {e}", color=Colors.Text.RED)
                 continue
-
-    # NOTE: Temp; remove it
-    with open('mknc.json', 'w', encoding='utf-8') as file:
-        json.dump(clusters, file)
 
     if verbose:
         total = sum(len(v) for v in clusters.values())
