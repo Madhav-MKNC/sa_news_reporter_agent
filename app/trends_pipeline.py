@@ -78,7 +78,7 @@ async def search_twitter_for_keywords(client: Client, keywords, per_keyword=6, m
     out = defaultdict(list)
     for kw in keywords:
         try:
-            tweets = await client.search_tweets(kw, count=per_keyword)
+            tweets = await client.search_tweet(kw, "Top", count=per_keyword)
         except Exception:
             continue
         for tw in tweets:
@@ -176,4 +176,78 @@ async def build_trends_news_items(client: Client, top_n_keywords=30, per_keyword
         raw_items.append(make_raw_news_from_cluster(kw, tws, top_k=min(5, len(tws))))
         if verbose:
             cprint(f" [CLUSTER] Keyword '{kw}' -> {len(tws)} tweets -> 1 raw news item.", color=Colors.Text.CYAN)
+    return raw_items
+
+# --- Function to search for trending news using Twikit ---
+async def search_trending_news_on_x(client: Client, per_keyword=5, min_like=20, min_rt=5, verbose=True):
+    """
+    Works like build_trends_news_items in I/O:
+      - Input: client, per_keyword, verbose (plus like/RT thresholds)
+      - Output: list of raw_news dicts (same schema as make_raw_news_from_cluster)
+    Internals: searches fixed trending hashtags instead of Google Trends.
+    """
+    trending_keywords = ["#BreakingNews", "#Trending", "#News", "#WorldNews", "#TopStory"]
+
+    clusters = defaultdict(list)
+
+    for keyword in trending_keywords:
+        try:
+            tweets = await client.search_tweet(keyword, "Top", count=per_keyword)
+            if verbose:
+                cprint(f" [TRENDING] Searching '{keyword}' -> {len(tweets) if tweets else 0} tweets.",
+                       color=Colors.Text.YELLOW)
+        except Exception as e:
+            if verbose:
+                cprint(f" [ERROR] Search failed for '{keyword}': {e}", color=Colors.Text.RED)
+            continue
+
+        if not tweets:
+            continue
+
+        for tw in tweets:
+            try:
+                if not isinstance(tw, Tweet):
+                    continue
+                if not getattr(tw, "text", None):
+                    continue
+                if (getattr(tw, "favorite_count", 0) or 0) < min_like and \
+                   (getattr(tw, "retweet_count", 0) or 0) < min_rt:
+                    continue
+
+                txt = tw.text.replace("\n", " ").strip()
+                media_urls = []
+                if getattr(tw, "media", None):
+                    for m in tw.media:
+                        u = getattr(m, "media_url_https", None) or getattr(m, "url", None)
+                        if u:
+                            media_urls.append(u)
+
+                clusters[keyword].append({
+                    "id": str(tw.id),
+                    "text": txt,
+                    "author": getattr(tw.user, "screen_name", None),
+                    "likes": int(getattr(tw, "favorite_count", 0) or 0),
+                    "retweets": int(getattr(tw, "retweet_count", 0) or 0),
+                    "replies": int(getattr(tw, "reply_count", 0) or 0),
+                    "timestamp": tw.created_at.isoformat() if getattr(tw, "created_at", None) else None,
+                    "url": f"https://x.com/{tw.user.screen_name}/status/{tw.id}" if getattr(tw, "user", None) else None,
+                    "media_urls": media_urls
+                })
+            except Exception:
+                continue
+
+    if verbose:
+        total = sum(len(v) for v in clusters.values())
+        cprint(f" [TWITTER] Retrieved a total of {total} tweets across {len(clusters)} keywords.",
+               color=Colors.Text.CYAN)
+
+    raw_items = []
+    for kw, tws in clusters.items():
+        if not tws:
+            continue
+        raw_items.append(make_raw_news_from_cluster(kw, tws, top_k=min(5, len(tws))))
+        if verbose:
+            cprint(f" [CLUSTER] Keyword '{kw}' -> {len(tws)} tweets -> 1 raw news item.",
+                   color=Colors.Text.CYAN)
+
     return raw_items

@@ -15,7 +15,7 @@ from app.llms.prompts import NEWS_GENERATE_SYSTEM_PROMPT, NEWS_GENERATE_PROMPT
 from app.llms.parser import Parser
 from app.models import NewsItemModel
 from app.colored import cprint, Colors
-from app.trends_pipeline import build_trends_news_items
+from app.trends_pipeline import build_trends_news_items, search_trending_news_on_x
 
 
 # --- Auth ---
@@ -31,13 +31,9 @@ async def twikit_login():
         cprint(f" [AUTH] Loading cookies from: {COOKIES_PATH}", color=Colors.Text.YELLOW)
         client.load_cookies(COOKIES_PATH)  # No await needed
         try:
-            cprint(" [AUTH] Refreshing session...", color=Colors.Text.YELLOW)
             await client.refresh_auth()  # This is asynchronous, so we keep await here
-            cprint(" [AUTH] Session refreshed successfully.", color=Colors.Text.GREEN)
             return
         except Exception as e:
-            cprint(f" [AUTH] Exception: {e}", color=Colors.Text.YELLOW)
-            cprint(" [AUTH] Failed to refresh session.", color=Colors.Text.RED)
             pass
     else:
         cprint(" [AUTH] No cookies found at path.", color=Colors.Text.RED)
@@ -88,7 +84,8 @@ def update_maal(verbose=True):
 
 
 async def update_from_trends(verbose=True):
-    raw_items = await build_trends_news_items(client, top_n_keywords=30, per_keyword=6)
+    # raw_items = await build_trends_news_items(client, top_n_keywords=30, per_keyword=6)
+    raw_items = await search_trending_news_on_x(client, per_keyword=6, verbose=verbose)
     if verbose:
         cprint(f" [ENGINE] Retrieved {len(raw_items)} news items from trends.", color=Colors.Text.GREEN)
     for raw_news in raw_items:
