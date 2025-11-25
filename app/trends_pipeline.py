@@ -1,6 +1,7 @@
 # trends_pipeline.py
 import re
 import asyncio
+import json
 from datetime import datetime, timezone
 from collections import defaultdict
 
@@ -208,23 +209,38 @@ async def search_trending_news_on_x(client: Client, per_keyword=5, min_like=20, 
             try:
                 text = getattr(tw, "full_text", None) or getattr(tw, "text", None)
                 if not text:
+                    if verbose:
+                        cprint(f"   [SKIP] No text in tweet {tw.id}", color=Colors.Text.RED)
                     continue
 
-                if (tw.favorite_count or 0) < min_like and (tw.retweet_count or 0) < min_rt:
+                likes = tw.favorite_count or 0
+                rts = tw.retweet_count or 0
+
+                if likes < min_like and rts < min_rt:
+                    if verbose:
+                        cprint(f"   [SKIP] Low engagement {tw.id} (likes={likes}, rts={rts})", color=Colors.Text.RED)
                     continue
+
+                if verbose:
+                    cprint(f"   [OK] Adding tweet {tw.id}", color=Colors.Text.GREEN)
 
                 clusters[keyword].append({
                     "id": str(tw.id),
                     "text": text.replace("\n", " ").strip(),
                     "author": tw.user.screen_name,
-                    # "likes": int(tw.favorite_count or 0),
-                    # "retweets": int(tw.retweet_count or 0),
+                    # "likes": likes,
+                    # "retweets": rts,
                     # "replies": int(tw.reply_count or 0),
-                    "timestamp": tw.created_at.isoformat() if tw.created_at else None,
+                    "timestamp": (tw.created_at if isinstance(tw.created_at, str) else (tw.created_at.isoformat() if tw.created_at else None)),
                     "url": f"https://x.com/{tw.user.screen_name}/status/{tw.id}"
                 })
-            except Exception:
+            except Exception as e:
+                cprint(f"   [ERR] Failed to process tweet: {e}", color=Colors.Text.RED)
                 continue
+
+    # NOTE: Temp; remove it
+    with open('mknc.json', 'w', encoding='utf-8') as file:
+        json.dump(clusters, file)
 
     if verbose:
         total = sum(len(v) for v in clusters.values())
