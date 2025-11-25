@@ -61,7 +61,7 @@ class GroqLLM:
 
 class ChutesAI:
     # model = "unsloth/gemma-2-9b-it"
-    # model = "unsloth/gemma-3-4b-it"
+    model = "unsloth/gemma-3-4b-it"
     # model = "Qwen/Qwen3-30B-A3B"
     # model = "nvidia/Llama-3_1-Nemotron-Ultra-253B-v1"
     # model = "microsoft/MAI-DS-R1-FP8"
@@ -70,7 +70,7 @@ class ChutesAI:
     # model = "deepseek-ai/DeepSeek-V3-0324"
     # model = "Qwen/Qwen3-1.7B"
     # model = "chutesai/Llama-3.1-405B-FP8"
-    model = "openai/gpt-oss-20b"
+    # model = "openai/gpt-oss-20b"
 
     def __init__(self):
         self.client = ChutesLLM(api_key=os.getenv("CHUTES_API_KEY"))
@@ -100,6 +100,48 @@ class ChutesAI:
             print(f"error: {e}")
             print(f"response: {response}")
             print("===========================================")
+            output = ""
+
+        return output
+
+    # NEW (reasoning)
+    def get_reasoning_response(self, messages, model="openai/gpt-oss-20b"):
+        response = self.client.reasoning.create(
+            messages=messages,
+            model=model or "openai/gpt-oss-20b",
+            temperature=0.7,
+        )
+
+        try:
+            choice = (response.get("choices") or [{}])[0]
+            message = choice.get("message") or {}
+
+            content = message.get("content")
+            reasoning = message.get("reasoning_content")
+            text_fallback = choice.get("text")
+
+            # Prefer normal content; else reasoning_content; else any text fallback
+            if isinstance(content, str) and content.strip():
+                output = content.strip()
+            elif isinstance(reasoning, str) and reasoning.strip():
+                output = reasoning.strip()
+            elif isinstance(text_fallback, str) and text_fallback.strip():
+                output = text_fallback.strip()
+            else:
+                output = ""
+
+        except ChutesLLMError as e:
+            print(f"=== ChutesLLMError in reasoning completion ===")
+            print(f"error: {e}")
+            print(f"response: {response}")
+            print("==============================================")
+            output = ""
+
+        except Exception as e:
+            print(f"=== Exception in reasoning completion error ===")
+            print(f"error: {e}")
+            print(f"response: {response}")
+            print("===============================================")
             output = ""
 
         return output

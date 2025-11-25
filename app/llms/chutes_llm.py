@@ -105,7 +105,32 @@ class Chat:
         self.completions = Completions(config)
 
 
+# ---- NEW: Reasoning (GPT-OSS 20B) non-stream support ----
+class Reasoning:
+    """
+    Convenience wrapper for 'thinking' models like openai/gpt-oss-20b.
+    Defaults to non-streaming.
+    """
+    DEFAULT_MODEL = "openai/gpt-oss-20b"
+
+    def __init__(self, config: ChutesLLMConfig):
+        self._config = config
+        self._completions = Completions(config)
+
+    def create(self, **kwargs) -> Dict[str, Any]:
+        """
+        Same signature as Completions.create, but:
+        - defaults model to GPT-OSS 20B
+        - forces non-stream unless explicitly overridden
+        """
+        if not kwargs.get("model"):
+            kwargs["model"] = self.DEFAULT_MODEL
+        kwargs.setdefault("stream", False)  # non-stream by default
+        return self._completions.create(**kwargs)
+
+
 class ChutesLLM:
     def __init__(self, api_key: str):
         self.config = ChutesLLMConfig(api_key=api_key)
         self.chat = Chat(self.config)
+        self.reasoning = Reasoning(self.config)

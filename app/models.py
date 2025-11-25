@@ -17,7 +17,7 @@ class NewsItemModel(BaseModel):
     def create_dir(self):
         if not os.path.exists(NEWS_DATA_STORE_DIR):
             os.makedirs(NEWS_DATA_STORE_DIR)
-        os.makedirs(os.path.join(NEWS_DATA_STORE_DIR, self.id))
+        os.makedirs(os.path.join(NEWS_DATA_STORE_DIR, self.id), exist_ok=True)
 
     @classmethod
     def from_dict(cls, data: Dict[str, str]) -> 'NewsItemModel':

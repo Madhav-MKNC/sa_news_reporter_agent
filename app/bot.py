@@ -53,14 +53,17 @@ def write_and_save_full_news(raw_news: dict, verbose=True):
         {"role": "user", "content": NEWS_GENERATE_PROMPT.format(raw_news=raw_news)}
     ]
 
-    cprint(" [LLM] Dispatching request to LLM...", color=Colors.Text.MAGENTA)
+    if verbose:
+        cprint(" [LLM] Dispatching request to LLM...", color=Colors.Text.MAGENTA)
+
     response = get_llm_response(messages)
-    cprint(" [LLM] Response received successfully.", color=Colors.Text.GREEN)
-    
-    news_json = Parser().get_news_json(response)
-    
+
     if verbose:
         cprint(f"[LLM] Raw Response:\n{response}", color=Colors.Text.CYAN)
+
+    news_json = Parser().get_news_json(response)
+
+    if verbose:
         cprint(f"[PARSER] Parsed News JSON:\n{json.dumps(dict(news_json), indent=4)}", color=Colors.Text.MAGENTA)
 
     news_item = NewsItemModel.from_dict(news_json)
