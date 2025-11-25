@@ -9,3 +9,5 @@ tqdm==4.66.5
 websockets==15.0.1
 twikit==2.3.3
 pytrends
+streamlit
+pandas
