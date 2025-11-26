@@ -187,7 +187,15 @@ async def search_trending_news_on_x(client: Client, per_keyword=5, min_like=20, 
       - Output: list of raw_news dicts (same schema as make_raw_news_from_cluster)
     Internals: searches fixed trending hashtags instead of Google Trends.
     """
-    trending_keywords = ["#BreakingNews", "#Karnataka"]
+    trending_keywords = [
+        "#BreakingNews",
+        "#Karnataka",
+        "#Ayodhya",
+        "#mahindraxev9slaunch",
+        "Nvidia",
+        "Matt Van Epps",
+        "Ushakov",
+    ]
 
     clusters = defaultdict(list)
 
