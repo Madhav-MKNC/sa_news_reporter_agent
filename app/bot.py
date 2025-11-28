@@ -48,9 +48,10 @@ async def twikit_login():
 
 def write_and_save_full_news(raw_news: dict, verbose=True):
     cprint(f" [PROCESS] Processing news item: {raw_news.get('headline_str', 'Unknown')[:50]}...", color=Colors.Text.BLUE)
+    raw_news_without_sources = {k: v for k, v in raw_news.items() if k != "sources"}
     messages = [
         {"role": "system", "content": NEWS_GENERATE_SYSTEM_PROMPT},
-        {"role": "user", "content": NEWS_GENERATE_PROMPT.format(raw_news=raw_news)}
+        {"role": "user", "content": NEWS_GENERATE_PROMPT.format(raw_news=raw_news_without_sources)}
     ]
 
     if verbose:
@@ -64,8 +65,9 @@ def write_and_save_full_news(raw_news: dict, verbose=True):
     news_json = Parser().get_news_json(response)
 
     if verbose:
-        cprint(f"[PARSER] Parsed News JSON:\n{json.dumps(dict(news_json), indent=4)}", color=Colors.Text.MAGENTA)
+        cprint(f"[PARSER] Parsed News JSON:\n{json.dumps(dict(news_json), indent=4)}", color=Colors.Text.CYAN)
 
+    news_json['source_list'] = raw_news.get('source_list', [])
     news_item = NewsItemModel.from_dict(news_json)
     news_item.create_dir()
     cprint(" [SYSTEM] Saving news data to disk...", color=Colors.Text.YELLOW)
@@ -86,9 +88,9 @@ def update_maal(verbose=True):
         write_and_save_full_news(raw_news, verbose=verbose)
 
 
-async def update_from_trends(verbose=True):
+async def update_from_trends(keywords=[], verbose=True):
     # raw_items = await build_trends_news_items(client, top_n_keywords=30, per_keyword=6)
-    raw_items = await search_trending_news_on_x(client, per_keyword=6, verbose=verbose)
+    raw_items = await search_trending_news_on_x(client, per_keyword=5, keywords=keywords, min_like=100, min_rt=10, verbose=verbose)
     if verbose:
         cprint(f" [ENGINE] Retrieved {len(raw_items)} news items from trends.", color=Colors.Text.GREEN)
     for raw_news in raw_items:
@@ -101,11 +103,20 @@ async def update_from_trends(verbose=True):
 async def main():
     await twikit_login()
     cprint(" [BOT] Login sequence finished.", color=Colors.Text.GREEN)
+
+    trending_keywords = [
+        "#BreakingNews",
+        "#Karnataka",
+        "#news",
+        "#WPLAuction",
+        "#WPL2026",
+    ]
+
     try:
         while True:
             cprint("[MAAL] Updating maal...", color=Colors.Text.YELLOW)
             # update_maal()
-            await update_from_trends()
+            await update_from_trends(keywords=trending_keywords)
 
             # COUNTDOWN
             for i in range(NEWS_FETCH_INTERVAL, 0, -1):

@@ -148,8 +148,8 @@ class ChutesAI:
 
 
 # llm
-# llm = GroqLLM()
-llm = ChutesAI()
+llm = GroqLLM()
+# llm = ChutesAI()
 
 def get_llm_response(messages, model=None):
     try:

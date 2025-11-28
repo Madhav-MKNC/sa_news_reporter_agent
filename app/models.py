@@ -9,10 +9,11 @@ from app.configs import NEWS_DATA_STORE_DIR
 
 
 class NewsItemModel(BaseModel):
-    id: Optional[str] = str(datetime.now().strftime("%I_%M_%p_%d_%m_%Y"))
+    id: Optional[str] = f"{str(datetime.now().strftime("%I_%M_%p_%d_%m_%Y"))}_{str(uuid4())}"
     headline_str: Optional[str]
     content_str: str
     tags_list: Optional[List[str]] = []
+    source_list: Optional[List[str]] = []
     
     def create_dir(self):
         if not os.path.exists(NEWS_DATA_STORE_DIR):
@@ -22,10 +23,11 @@ class NewsItemModel(BaseModel):
     @classmethod
     def from_dict(cls, data: Dict[str, str]) -> 'NewsItemModel':
         return cls(
-            id=data.get('id', str(datetime.now().strftime("%I_%M_%p_%d_%m_%Y"))),
+            id=data.get('id', f"{str(datetime.now().strftime("%I_%M_%p_%d_%m_%Y"))}_{str(uuid4())}"),
             headline_str=data.get('headline_str'),
             content_str=data.get('content_str'),
-            tags_list=data.get('tags_list', [])
+            tags_list=data.get('tags_list', []),
+            source_list=data.get('source_list', [])
         )
 
     def to_json(self) -> Dict[str, str]:
@@ -33,7 +35,8 @@ class NewsItemModel(BaseModel):
             "id": self.id,
             "headline_str": self.headline_str,
             "content_str": self.content_str,
-            "tags_list": " ".join(self.tags_list)
+            "tags_list": " ".join(self.tags_list),
+            "source_list": " ".join(self.source_list)
         }
 
     def save_json(self):

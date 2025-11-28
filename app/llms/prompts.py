@@ -10,8 +10,8 @@ Rules (strict):
 - Do not invent data, quotes, numbers, or sources not present in the input.
 - Never ever mention any other news agency until the news is about THEM.
 - Timezone: include ISO timestamps in UTC and IST (+05:30) if provided/derivable in input; otherwise leave null.
-- Hashtags: 2–10 relevant, mixed trending+evergreen, in TitleCase (e.g., #Karnataka, #Bengaluru, #BreakingNews).
-- Links: primary_link should be the most authoritative/public source (official handle, reputable outlet, or the original tweet URL).
+- Hashtags: 2–10 relevant, mixed trending+evergreen, in TitleCase (e.g., #Karnataka, #Bengaluru, #BreakingNews). Make sure your tags look like "#tag" and not "##tag".
+- Links: primary_link should be the most authoritative/public source (excluding direct twitter links).
 
 Required JSON schema (exact keys):
 ```json
@@ -38,7 +38,7 @@ Task:
 2) Write a crisp headline (<=80 chars). If facts are still emerging, prefix or embed "Developing".
 3) Keep it Professional, sharp, non-generic
 4) Include 2–10 hashtags (TitleCase, relevant, no spam)
-5) If a link is helpful, include exactly one
+5) If a link is helpful, include exactly one (Do not include links to our own platform, or links to other tweets, or links that are not authoritative/reputable).
 
 Return exactly one JSON object conforming to the schema defined in the system prompt. No extra text.
 """.strip()
