@@ -109,8 +109,13 @@ async def main():
         "#BreakingNews",
         "#Karnataka",
         "#news",
-        "#WPLAuction",
-        "#WPL2026",
+        "#BornToTrade",
+        "8.2% GDP",
+        "#YutiBreaker_NileshRane",
+        "#CareerGuidance",
+        "#SriLankafloods",
+        "#AirForce",
+        "#thailand"
     ]
 
     try:
