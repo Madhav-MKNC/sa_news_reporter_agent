@@ -252,7 +252,7 @@ def delete_item(item_id):
 
 
 async def main():
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host="0.0.0.0", port=5000)
 
 
 if __name__ == '__main__':
