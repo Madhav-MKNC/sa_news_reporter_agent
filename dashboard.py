@@ -6,6 +6,9 @@ from datetime import datetime, timezone
 import urllib.parse
 from collections import Counter
 import shutil
+import asyncio
+
+from app.bot import update_from_trends
 
 # --- CONFIG ---
 try:
@@ -267,12 +270,9 @@ def load_data():
                 "tags": tags,
                 "sources": sources,
                 "datetime": dt,
-                # This line was causing the error
                 "display_time": get_relative_time(dt)
             })
         except Exception as e:
-            # We print the error but don't break the app,
-            # now the get_relative_time is fixed so it shouldn't error here.
             print(f"Skipped {folder}: {e}")
             continue
 
@@ -290,6 +290,66 @@ df = load_data()
 with st.sidebar:
     st.markdown("### ⚡ Maal")
     st.caption(f"Storage: `{os.path.abspath(NEWS_DATA_STORE_DIR)}`")
+
+    # --- UPDATE MAAL SECTION ---
+    st.markdown("---")
+    with st.expander("Update Maal", expanded=False):
+        # Initialize session state for keywords
+        if "trending_keywords" not in st.session_state:
+            st.session_state["trending_keywords"] = []
+
+        # Input to add keyword
+        kw_input = st.text_input(
+            "Add Keyword", key="kw_in", placeholder="Enter topic...")
+        if st.button("Add", use_container_width=True):
+            if kw_input and kw_input not in st.session_state["trending_keywords"]:
+                st.session_state["trending_keywords"].append(kw_input)
+                st.rerun()
+
+        st.caption("Keywords List:")
+
+        # Display list with Edit/Remove capabilities
+        # We use a copy to allow modification during iteration
+        if not st.session_state["trending_keywords"]:
+            st.markdown(
+                "<span style='color:#666;font-size:0.8rem'>No keywords added.</span>", unsafe_allow_html=True)
+
+        for i, kw in enumerate(st.session_state["trending_keywords"]):
+            c_edit, c_rem = st.columns([0.8, 0.2])
+
+            # Edit functionality: Text input acts as display & edit
+            new_val = c_edit.text_input(
+                label="Edit",
+                value=kw,
+                key=f"kw_edit_{i}",
+                label_visibility="collapsed"
+            )
+
+            # Update state if changed
+            if new_val != kw:
+                st.session_state["trending_keywords"][i] = new_val
+
+            # Remove button
+            if c_rem.button("✕", key=f"kw_rem_{i}"):
+                st.session_state["trending_keywords"].pop(i)
+                st.rerun()
+
+        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+
+        # Update Button
+        if st.button("Run Update", type="primary", use_container_width=True):
+            if st.session_state["trending_keywords"]:
+                with st.spinner("Updating from trends..."):
+                    asyncio.run(update_from_trends(
+                        keywords=st.session_state["trending_keywords"]))
+                st.success("Maal Updated!")
+                st.cache_data.clear()
+                st.rerun()
+            else:
+                st.warning("Please add at least one keyword.")
+
+    st.markdown("---")
+    # ---------------------------
 
     if not df.empty:
         all_tags = [t for tags in df["tags"] for t in tags]
