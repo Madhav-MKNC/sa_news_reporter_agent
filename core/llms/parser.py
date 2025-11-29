@@ -1,6 +1,6 @@
 import re
 import json
-from app.colored import cprint, Colors
+from core.colored import cprint, Colors
 
 
 # Output parser

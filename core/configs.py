@@ -1,6 +1,6 @@
 # --- Config ---
 
-from app.colored import cprint, Colors
+from core.colored import cprint, Colors
 
 import os
 from dotenv import load_dotenv

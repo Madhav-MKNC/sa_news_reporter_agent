@@ -5,17 +5,17 @@ import time
 
 from twikit import Client
 
-from app.configs import (
+from core.configs import (
     COOKIES_PATH,
     NEWS_FETCH_INTERVAL,
 )
-from app.news_engine import NewsEngine
-from app.llms import get_llm_response
-from app.llms.prompts import NEWS_GENERATE_SYSTEM_PROMPT, NEWS_GENERATE_PROMPT
-from app.llms.parser import Parser
-from app.models import NewsItemModel
-from app.colored import cprint, Colors
-from app.trends_pipeline import build_trends_news_items, search_trending_news_on_x
+from core.news_engine import NewsEngine
+from core.llms import get_llm_response
+from core.llms.prompts import NEWS_GENERATE_SYSTEM_PROMPT, NEWS_GENERATE_PROMPT
+from core.llms.parser import Parser
+from core.models import NewsItemModel
+from core.colored import cprint, Colors
+from core.trends_pipeline import build_trends_news_items, search_trending_news_on_x
 
 
 # --- Auth ---

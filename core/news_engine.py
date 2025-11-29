@@ -4,7 +4,7 @@ import requests
 
 import xml.etree.ElementTree as ET
 
-from app.colored import cprint, Colors
+from core.colored import cprint, Colors
 
 
 class NewsEngine:

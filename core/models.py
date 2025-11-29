@@ -5,7 +5,7 @@ from uuid import uuid4
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 
-from app.configs import NEWS_DATA_STORE_DIR
+from core.configs import NEWS_DATA_STORE_DIR
 
 
 class NewsItemModel(BaseModel):

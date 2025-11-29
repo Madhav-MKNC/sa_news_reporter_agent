@@ -8,13 +8,9 @@ from collections import Counter
 import shutil
 import asyncio
 
-from app.bot import update_from_trends
+from core.bot import update_from_trends
 
-# --- CONFIG ---
-try:
-    from app.configs import NEWS_DATA_STORE_DIR
-except ImportError:
-    NEWS_DATA_STORE_DIR = "news_data"
+from core.configs import NEWS_DATA_STORE_DIR
 
 # Ensure directory exists
 if not os.path.exists(NEWS_DATA_STORE_DIR):
