@@ -7,7 +7,7 @@ import pandas as pd
 import urllib.parse
 from datetime import datetime
 from collections import Counter
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 
 from twikit import Client
 
@@ -136,25 +136,28 @@ def index():
     # Load Data
     items = load_data()
 
-    # Calculate Stats & Tags
+    # Session Keywords Defaults
+    DEFAULT_KEYWORDS = ["#BreakingNews", "#Karnataka", "#news", "#india"]
+
+    if 'trending_keywords' not in session:
+        session['trending_keywords'] = DEFAULT_KEYWORDS
+    elif not session['trending_keywords']:  # If list exists but is empty
+        session['trending_keywords'] = DEFAULT_KEYWORDS
+
+    # Stats & Tags
     all_tags = [t for item in items for t in item["tags"]]
     tag_counts = Counter(all_tags).most_common(20)
     unique_topics = len(set(all_tags))
 
-    # Filtering
+    # Backend Filtering (Optional now that we have frontend search, but good for deep linking)
     search_query = request.args.get('search', '').lower()
     selected_tag = request.args.get('tag', 'All')
-
-    if search_query:
-        items = [i for i in items if search_query in i['headline'].lower(
-        ) or search_query in i['content'].lower()]
 
     if selected_tag != "All":
         items = [i for i in items if selected_tag in i['tags']]
 
-    # Session Keywords (Default empty if not set)
-    if 'trending_keywords' not in session:
-        session['trending_keywords'] = []
+    # We return ALL items for the search query to allow JS realtime filtering
+    # But if a tag is selected, we only return those tagged items.
 
     return render_template('index.html',
                            items=items,
@@ -185,6 +188,24 @@ def remove_keyword(index):
     return redirect(url_for('index'))
 
 
+@app.route('/keyword/edit', methods=['POST'])
+def edit_keyword():
+    """Endpoint to update a keyword via AJAX"""
+    try:
+        data = request.json
+        index = int(data.get('index'))
+        new_value = data.get('value')
+
+        kws = session.get('trending_keywords', [])
+        if 0 <= index < len(kws) and new_value:
+            kws[index] = new_value
+            session['trending_keywords'] = kws
+            return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+    return jsonify({"status": "error"}), 400
+
+
 @app.route('/update-trends', methods=['POST'])
 def update_trends():
     kws = session.get('trending_keywords', [])
@@ -192,9 +213,10 @@ def update_trends():
         flash("Please add at least one keyword.")
         return redirect(url_for('index'))
 
-    # Run async function in sync route
+    # Call bot function (it handles its own client now)
     print(f"[keywords] {kws}")
     asyncio.run(update_from_trends(client=client, keywords=kws))
+
     flash("Maal Updated Successfully!")
     return redirect(url_for('index'))
 

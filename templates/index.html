@@ -81,6 +81,20 @@
                 outline: 1px solid #fff;
             }
 
+            /* Editable Keyword Input */
+            .kw-input {
+                background: transparent !important;
+                border: 1px solid transparent !important;
+                color: #ededed !important;
+                padding: 2px 5px !important;
+                font-size: 0.9rem;
+            }
+            .kw-input:hover,
+            .kw-input:focus {
+                border-color: #333 !important;
+                background-color: #000 !important;
+            }
+
             button {
                 cursor: pointer;
                 padding: 8px 12px;
@@ -161,6 +175,7 @@
                 cursor: pointer;
                 padding: 4px;
                 border-radius: 4px;
+                text-decoration: none;
             }
             .radio-label:hover {
                 background: #111;
@@ -284,6 +299,8 @@
                 <div style="font-weight: 600; margin-bottom: 10px">
                     Update Maal
                 </div>
+
+                <!-- Add New Keyword -->
                 <form
                     action="{{ url_for('add_keyword') }}"
                     method="POST"
@@ -299,6 +316,7 @@
                     <button type="submit" class="btn-secondary">+</button>
                 </form>
 
+                <!-- List / Edit Keywords -->
                 <div class="kw-list">
                     {% if not keywords %}
                     <div style="color: #666; font-size: 0.8rem">
@@ -306,7 +324,12 @@
                     </div>
                     {% endif %} {% for kw in keywords %}
                     <div class="kw-item">
-                        <span>{{ kw }}</span>
+                        <input
+                            type="text"
+                            class="kw-input"
+                            value="{{ kw }}"
+                            onchange="updateKeyword({{ loop.index0 }}, this.value)"
+                        />
                         <a
                             href="{{ url_for('remove_keyword', index=loop.index0) }}"
                             class="btn-icon"
@@ -347,14 +370,14 @@
             <div style="font-weight: 600; margin-bottom: 10px">Topics</div>
             <div class="radio-group">
                 <a
-                    href="{{ url_for('index', search=search_query, tag='All') }}"
+                    href="{{ url_for('index', tag='All') }}"
                     class="radio-label {{ 'active' if selected_tag == 'All' else '' }}"
                 >
                     ◎ All
                 </a>
                 {% for tag, count in tag_counts %}
                 <a
-                    href="{{ url_for('index', search=search_query, tag=tag) }}"
+                    href="{{ url_for('index', tag=tag) }}"
                     class="radio-label {{ 'active' if selected_tag == tag else '' }}"
                 >
                     ◎ #{{ tag }} ({{ count }})
@@ -375,23 +398,19 @@
                 "
             >
                 <h3 style="margin: 0; width: 100px">Feed</h3>
-                <form
-                    action="{{ url_for('index') }}"
-                    method="GET"
-                    style="flex-grow: 1"
-                >
-                    <input
-                        type="hidden"
-                        name="tag"
-                        value="{{ selected_tag }}"
-                    />
+
+                <!-- Realtime Search Input -->
+                <div style="flex-grow: 1">
                     <input
                         type="text"
-                        name="search"
-                        placeholder="Search headlines..."
-                        value="{{ search_query }}"
+                        id="searchInput"
+                        placeholder="Search headlines (realtime)..."
+                        value=""
+                        oninput="filterNews(this.value)"
+                        autocomplete="off"
                     />
-                </form>
+                </div>
+
                 <a href="{{ url_for('index') }}">
                     <button class="btn-secondary">Refresh</button>
                 </a>
@@ -409,90 +428,136 @@
                 <h2>📭</h2>
                 <p>No items found.</p>
             </div>
-            {% else %} {% for item in items %}
-            <div class="card">
-                <div class="meta-mono">
-                    <span style="color: #fff">● Live</span>
-                    <span>{{ item.display_time }}</span>
-                    <span style="opacity: 0.3">|</span>
-                    <span>{{ item.fmt_time }}</span>
-                </div>
-                <div class="headline">{{ item.headline }}</div>
-                <div class="content-text">{{ item.content }}</div>
+            {% else %}
+            <div id="newsContainer">
+                {% for item in items %}
+                <div class="card news-card">
+                    <div class="meta-mono">
+                        <span style="color: #fff">● Live</span>
+                        <span>{{ item.display_time }}</span>
+                        <span style="opacity: 0.3">|</span>
+                        <span>{{ item.fmt_time }}</span>
+                    </div>
+                    <div class="headline">{{ item.headline }}</div>
+                    <div class="content-text">{{ item.content }}</div>
 
-                <div class="card-grid">
-                    <div>
-                        <!-- Tags -->
-                        <div style="margin-bottom: 10px">
-                            {% for t in item.tags %}
-                            <a
-                                class="tag-pill"
-                                href="https://x.com/search?q=%23{{ t }}"
-                                target="_blank"
-                                >#{{ t }}</a
+                    <div class="card-grid">
+                        <div>
+                            <!-- Tags -->
+                            <div style="margin-bottom: 10px">
+                                {% for t in item.tags %}
+                                <a
+                                    class="tag-pill"
+                                    href="https://x.com/search?q=%23{{ t }}"
+                                    target="_blank"
+                                    >#{{ t }}</a
+                                >
+                                {% endfor %}
+                            </div>
+
+                            <!-- Sources -->
+                            {% if item.sources %}
+                            <div
+                                style="
+                                    font-size: 0.7rem;
+                                    color: #444;
+                                    font-weight: 700;
+                                    margin-bottom: 5px;
+                                "
                             >
-                            {% endfor %}
+                                SOURCES
+                            </div>
+                            <div class="source-box">
+                                {% for s in item.sources %}
+                                <a
+                                    class="source-link"
+                                    href="{{ s }}"
+                                    target="_blank"
+                                    >🔗 {{ s }}</a
+                                >
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                         </div>
 
-                        <!-- Sources -->
-                        {% if item.sources %}
+                        <!-- Actions -->
                         <div
                             style="
-                                font-size: 0.7rem;
-                                color: #444;
-                                font-weight: 700;
-                                margin-bottom: 5px;
+                                display: flex;
+                                flex-direction: column;
+                                gap: 10px;
+                                padding-top: 10px;
                             "
                         >
-                            SOURCES
-                        </div>
-                        <div class="source-box">
-                            {% for s in item.sources %}
                             <a
-                                class="source-link"
-                                href="{{ s }}"
+                                href="{{ item.x_link }}"
                                 target="_blank"
-                                >🔗 {{ s }}</a
+                                style="text-decoration: none"
                             >
-                            {% endfor %}
+                                <button class="btn-primary">Post on 𝕏</button>
+                            </a>
+                            <button
+                                class="btn-secondary"
+                                onclick="confirmDelete('{{ item.id }}')"
+                            >
+                                Delete
+                            </button>
                         </div>
-                        {% endif %}
-                    </div>
-
-                    <!-- Actions -->
-                    <div
-                        style="
-                            display: flex;
-                            flex-direction: column;
-                            gap: 10px;
-                            padding-top: 10px;
-                        "
-                    >
-                        <a
-                            href="{{ item.x_link }}"
-                            target="_blank"
-                            style="text-decoration: none"
-                        >
-                            <button class="btn-primary">Post on 𝕏</button>
-                        </a>
-
-                        <button
-                            class="btn-secondary"
-                            onclick="confirmDelete('{{ item.id }}')"
-                        >
-                            Delete
-                        </button>
                     </div>
                 </div>
+                {% endfor %}
             </div>
-            {% endfor %} {% endif %}
+            {% endif %}
         </div>
 
         <script>
+            // 1. Delete Confirmation
             function confirmDelete(itemId) {
                 if (confirm("Are you sure you want to delete this item?")) {
                     window.location.href = "/delete/" + itemId;
                 }
+            }
+
+            // 2. Real-time Search Filter
+            function filterNews(query) {
+                const term = query.toLowerCase();
+                const cards = document.querySelectorAll(".news-card");
+
+                cards.forEach((card) => {
+                    // Search in headline and content
+                    const headline = card
+                        .querySelector(".headline")
+                        .innerText.toLowerCase();
+                    const content = card
+                        .querySelector(".content-text")
+                        .innerText.toLowerCase();
+
+                    if (headline.includes(term) || content.includes(term)) {
+                        card.style.display = "block";
+                    } else {
+                        card.style.display = "none";
+                    }
+                });
+            }
+
+            // 3. Edit Keyword Logic
+            function updateKeyword(index, newValue) {
+                fetch("/keyword/edit", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ index: index, value: newValue }),
+                })
+                    .then((response) => response.json())
+                    .then((data) => {
+                        if (data.status !== "success") {
+                            alert("Failed to update keyword");
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Error:", error);
+                    });
             }
         </script>
     </body>
