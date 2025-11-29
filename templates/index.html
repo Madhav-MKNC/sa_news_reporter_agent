@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>SA News Editor</title>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            /* CSS Adapted from Streamlit Code */
+            :root {
+                --bg-color: #000000;
+                --card-bg: #0a0a0a;
+                --border-color: #333;
+                --text-color: #ededed;
+                --accent: #fff;
+            }
+
+            body {
+                font-family: "Inter", sans-serif;
+                background-color: var(--bg-color);
+                color: var(--text-color);
+                margin: 0;
+                padding: 0;
+                display: flex;
+                height: 100vh;
+                overflow: hidden;
+            }
+
+            /* Layout */
+            .sidebar {
+                width: 300px;
+                background-color: #050505;
+                border-right: 1px solid var(--border-color);
+                padding: 20px;
+                display: flex;
+                flex-direction: column;
+                overflow-y: auto;
+                flex-shrink: 0;
+            }
+
+            .main-content {
+                flex-grow: 1;
+                padding: 20px 40px;
+                overflow-y: auto;
+                max-width: 1200px;
+                margin: 0 auto;
+                width: 100%;
+            }
+
+            /* Components */
+            h3 {
+                margin-top: 0;
+            }
+            .caption {
+                font-size: 0.8rem;
+                color: #666;
+                font-family: "JetBrains Mono", monospace;
+                word-break: break-all;
+            }
+            hr {
+                border: 0;
+                border-top: 1px solid #222;
+                margin: 20px 0;
+            }
+
+            /* Inputs */
+            input[type="text"] {
+                background-color: var(--card-bg);
+                border: 1px solid var(--border-color);
+                color: #fff;
+                padding: 8px 12px;
+                border-radius: 6px;
+                width: 100%;
+                box-sizing: border-box;
+                font-family: inherit;
+            }
+            input[type="text"]:focus {
+                outline: 1px solid #fff;
+            }
+
+            button {
+                cursor: pointer;
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-size: 0.9rem;
+                transition: 0.2s;
+            }
+
+            .btn-primary {
+                background-color: #fff;
+                color: #000;
+                border: none;
+                font-weight: 600;
+                width: 100%;
+            }
+            .btn-primary:hover {
+                opacity: 0.9;
+            }
+
+            .btn-secondary {
+                background-color: #000;
+                border: 1px solid var(--border-color);
+                color: #ccc;
+            }
+            .btn-secondary:hover {
+                border-color: #fff;
+                color: #fff;
+            }
+
+            .btn-icon {
+                background: transparent;
+                border: none;
+                color: #666;
+                padding: 0 5px;
+            }
+            .btn-icon:hover {
+                color: #f44;
+            }
+
+            /* Lists */
+            .kw-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                background: #111;
+                padding: 5px 10px;
+                border-radius: 4px;
+                margin-bottom: 5px;
+                font-size: 0.9rem;
+            }
+
+            /* Metrics */
+            .metric-row {
+                display: flex;
+                gap: 20px;
+            }
+            .metric {
+                flex: 1;
+            }
+            .metric-val {
+                font-size: 1.5rem;
+                font-weight: 700;
+            }
+            .metric-label {
+                font-size: 0.8rem;
+                color: #666;
+            }
+
+            /* Filters */
+            .radio-group {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+            }
+            .radio-label {
+                font-size: 0.85rem;
+                color: #888;
+                cursor: pointer;
+                padding: 4px;
+                border-radius: 4px;
+            }
+            .radio-label:hover {
+                background: #111;
+                color: #fff;
+            }
+            .radio-label.active {
+                color: #fff;
+                font-weight: 600;
+            }
+
+            /* News Card */
+            .card {
+                background-color: var(--card-bg);
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                padding: 20px;
+                margin-bottom: 16px;
+                transition: border-color 0.2s ease;
+            }
+            .card:hover {
+                border-color: #555;
+            }
+
+            .meta-mono {
+                font-family: "JetBrains Mono", monospace;
+                font-size: 0.7rem;
+                color: #666;
+                margin-bottom: 12px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+
+            .headline {
+                font-size: 1.2rem;
+                font-weight: 700;
+                color: #fff;
+                margin-bottom: 10px;
+            }
+            .content-text {
+                font-size: 0.95rem;
+                line-height: 1.6;
+                color: #a1a1a1;
+                margin-bottom: 20px;
+                white-space: pre-wrap;
+            }
+
+            .tag-pill {
+                background: #111;
+                border: 1px solid #333;
+                color: #999;
+                padding: 4px 10px;
+                border-radius: 100px;
+                font-size: 0.75rem;
+                text-decoration: none;
+                display: inline-block;
+                margin-right: 6px;
+                margin-bottom: 6px;
+                transition: 0.2s;
+            }
+            .tag-pill:hover {
+                background: #fff;
+                color: #000;
+                border-color: #fff;
+            }
+
+            .source-box {
+                background: #050505;
+                border: 1px dashed #222;
+                padding: 12px;
+                border-radius: 6px;
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                margin-top: 10px;
+            }
+            .source-link {
+                font-family: "JetBrains Mono", monospace;
+                font-size: 0.75rem;
+                color: #444;
+                text-decoration: none;
+                overflow-wrap: break-word;
+                word-break: break-all;
+            }
+            .source-link:hover {
+                color: #3291ff;
+                text-decoration: underline;
+            }
+
+            .card-grid {
+                display: grid;
+                grid-template-columns: 3fr 1fr;
+                gap: 20px;
+            }
+
+            /* Alert/Flash */
+            .alert {
+                padding: 10px;
+                background: #111;
+                border: 1px solid #3291ff;
+                color: #3291ff;
+                border-radius: 6px;
+                margin-bottom: 20px;
+                font-size: 0.9rem;
+                text-align: center;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <h3>⚡ SA News Reporter Agent</h3>
+            <div class="caption">Storage: {{ store_dir }}</div>
+
+            <hr />
+
+            <!-- Keywords -->
+            <div style="margin-bottom: 20px">
+                <div style="font-weight: 600; margin-bottom: 10px">
+                    Update Maal
+                </div>
+                <form
+                    action="{{ url_for('add_keyword') }}"
+                    method="POST"
+                    style="display: flex; gap: 5px; margin-bottom: 10px"
+                >
+                    <input
+                        type="text"
+                        name="keyword"
+                        placeholder="Enter topic..."
+                        required
+                        autocomplete="off"
+                    />
+                    <button type="submit" class="btn-secondary">+</button>
+                </form>
+
+                <div class="kw-list">
+                    {% if not keywords %}
+                    <div style="color: #666; font-size: 0.8rem">
+                        No keywords added.
+                    </div>
+                    {% endif %} {% for kw in keywords %}
+                    <div class="kw-item">
+                        <span>{{ kw }}</span>
+                        <a
+                            href="{{ url_for('remove_keyword', index=loop.index0) }}"
+                            class="btn-icon"
+                            >✕</a
+                        >
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <form
+                    action="{{ url_for('update_trends') }}"
+                    method="POST"
+                    style="margin-top: 15px"
+                >
+                    <button type="submit" class="btn-primary">
+                        Run Update
+                    </button>
+                </form>
+            </div>
+
+            <hr />
+
+            <!-- Stats -->
+            <div class="metric-row">
+                <div class="metric">
+                    <div class="metric-label">News</div>
+                    <div class="metric-val">{{ news_count }}</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Topics</div>
+                    <div class="metric-val">{{ topics_count }}</div>
+                </div>
+            </div>
+
+            <hr />
+
+            <!-- Filter -->
+            <div style="font-weight: 600; margin-bottom: 10px">Topics</div>
+            <div class="radio-group">
+                <a
+                    href="{{ url_for('index', search=search_query, tag='All') }}"
+                    class="radio-label {{ 'active' if selected_tag == 'All' else '' }}"
+                >
+                    ◎ All
+                </a>
+                {% for tag, count in tag_counts %}
+                <a
+                    href="{{ url_for('index', search=search_query, tag=tag) }}"
+                    class="radio-label {{ 'active' if selected_tag == tag else '' }}"
+                >
+                    ◎ #{{ tag }} ({{ count }})
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div class="main-content">
+            <!-- Header -->
+            <div
+                style="
+                    display: flex;
+                    gap: 15px;
+                    margin-bottom: 20px;
+                    align-items: center;
+                "
+            >
+                <h3 style="margin: 0; width: 100px">Feed</h3>
+                <form
+                    action="{{ url_for('index') }}"
+                    method="GET"
+                    style="flex-grow: 1"
+                >
+                    <input
+                        type="hidden"
+                        name="tag"
+                        value="{{ selected_tag }}"
+                    />
+                    <input
+                        type="text"
+                        name="search"
+                        placeholder="Search headlines..."
+                        value="{{ search_query }}"
+                    />
+                </form>
+                <a href="{{ url_for('index') }}">
+                    <button class="btn-secondary">Refresh</button>
+                </a>
+            </div>
+
+            <!-- Messages -->
+            {% with messages = get_flashed_messages() %} {% if messages %} {%
+            for message in messages %}
+            <div class="alert">{{ message }}</div>
+            {% endfor %} {% endif %} {% endwith %}
+
+            <!-- Content -->
+            {% if items|length == 0 %}
+            <div style="text-align: center; padding: 60px; color: #444">
+                <h2>📭</h2>
+                <p>No items found.</p>
+            </div>
+            {% else %} {% for item in items %}
+            <div class="card">
+                <div class="meta-mono">
+                    <span style="color: #fff">● Live</span>
+                    <span>{{ item.display_time }}</span>
+                    <span style="opacity: 0.3">|</span>
+                    <span>{{ item.fmt_time }}</span>
+                </div>
+                <div class="headline">{{ item.headline }}</div>
+                <div class="content-text">{{ item.content }}</div>
+
+                <div class="card-grid">
+                    <div>
+                        <!-- Tags -->
+                        <div style="margin-bottom: 10px">
+                            {% for t in item.tags %}
+                            <a
+                                class="tag-pill"
+                                href="https://x.com/search?q=%23{{ t }}"
+                                target="_blank"
+                                >#{{ t }}</a
+                            >
+                            {% endfor %}
+                        </div>
+
+                        <!-- Sources -->
+                        {% if item.sources %}
+                        <div
+                            style="
+                                font-size: 0.7rem;
+                                color: #444;
+                                font-weight: 700;
+                                margin-bottom: 5px;
+                            "
+                        >
+                            SOURCES
+                        </div>
+                        <div class="source-box">
+                            {% for s in item.sources %}
+                            <a
+                                class="source-link"
+                                href="{{ s }}"
+                                target="_blank"
+                                >🔗 {{ s }}</a
+                            >
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Actions -->
+                    <div
+                        style="
+                            display: flex;
+                            flex-direction: column;
+                            gap: 10px;
+                            padding-top: 10px;
+                        "
+                    >
+                        <a
+                            href="{{ item.x_link }}"
+                            target="_blank"
+                            style="text-decoration: none"
+                        >
+                            <button class="btn-primary">Post on 𝕏</button>
+                        </a>
+
+                        <button
+                            class="btn-secondary"
+                            onclick="confirmDelete('{{ item.id }}')"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %} {% endif %}
+        </div>
+
+        <script>
+            function confirmDelete(itemId) {
+                if (confirm("Are you sure you want to delete this item?")) {
+                    window.location.href = "/delete/" + itemId;
+                }
+            }
+        </script>
+    </body>
+</html>

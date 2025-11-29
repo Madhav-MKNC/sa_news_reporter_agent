@@ -10,7 +10,7 @@ from twikit import Client, Tweet
 from pytrends.request import TrendReq
 from pytrends.exceptions import ResponseError
 
-from app.colored import cprint, Colors
+from core.colored import cprint, Colors
 
 
 def get_trend_keywords(top_n=40, dedupe=True):
