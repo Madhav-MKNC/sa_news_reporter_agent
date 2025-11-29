@@ -2,6 +2,8 @@ import os
 import json
 import shutil
 import asyncio
+import time  # <--- Added for rate limiting
+from collections import deque # <--- Added for rate limiting
 from uuid import uuid4
 import pandas as pd
 import urllib.parse
@@ -16,13 +18,14 @@ from core.bot import update_from_trends, twikit_login
 from core.configs import NEWS_DATA_STORE_DIR
 from core.colored import cprint, Colors
 
+# --- RATE LIMIT CONFIG ---
+RATE_LIMIT_MAX = 2         # Max requests
+RATE_LIMIT_WINDOW = 600     # Time window in seconds (10 minutes)
+# Stores timestamps of recent requests
+update_request_history = deque()
+
 app = Flask(__name__)
 app.secret_key = str(uuid4())
-
-
-# --- Auth ---
-client = Client('en-US')
-
 
 
 # --- HELPERS ---
@@ -208,6 +211,21 @@ def edit_keyword():
 
 @app.route('/update-trends', methods=['POST'])
 def update_trends():
+    global update_request_history
+    
+    client = Client('en-US')
+    asyncio.run(twikit_login(client))
+    
+    now = time.time()
+    while update_request_history and update_request_history[0] < now - RATE_LIMIT_WINDOW:
+        update_request_history.popleft()
+    if len(update_request_history) >= RATE_LIMIT_MAX:
+        # Calculate time remaining for the oldest request to expire
+        wait_time = int(RATE_LIMIT_WINDOW - (now - update_request_history[0]))
+        flash(f"Rate limit reached (2/10mins). Please wait {wait_time} seconds.")
+        return redirect(url_for('index'))
+    update_request_history.append(now)
+
     kws = session.get('trending_keywords', [])
     if not kws:
         flash("Please add at least one keyword.")
@@ -234,7 +252,6 @@ def delete_item(item_id):
 
 
 async def main():
-    await twikit_login(client=client)
     app.run(debug=True, port=5000)
 
 
