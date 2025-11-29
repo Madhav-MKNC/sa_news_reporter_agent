@@ -18,14 +18,11 @@ from core.colored import cprint, Colors
 from core.trends_pipeline import build_trends_news_items, search_trending_news_on_x
 
 
-# --- Auth ---
-client = Client('en-US')
-
 # --- Initialize NewsEngine ---
 news_engine = NewsEngine()
 
 
-async def twikit_login():
+async def twikit_login(client: Client):
     cprint(" [AUTH] Initializing authentication sequence...", color=Colors.Text.CYAN)
     if os.path.exists(COOKIES_PATH):
         cprint(f" [AUTH] Loading cookies from: {COOKIES_PATH}", color=Colors.Text.YELLOW)
@@ -89,7 +86,7 @@ def update_maal(verbose=True):
         write_and_save_full_news(raw_news, verbose=verbose)
 
 
-async def update_from_trends(keywords=[], verbose=True):
+async def update_from_trends(client: Client, keywords=[], verbose=True):
     # raw_items = await build_trends_news_items(client, top_n_keywords=30, per_keyword=6)
     raw_items = await search_trending_news_on_x(client, per_keyword=10, keywords=keywords, min_like=100, min_rt=10, verbose=verbose)
     if verbose:
@@ -102,7 +99,11 @@ async def update_from_trends(keywords=[], verbose=True):
 
 # --- Main Loop ---
 async def main():
-    await twikit_login()
+    
+    # --- Auth ---
+    client = Client('en-US')
+
+    await twikit_login(client)
     cprint(" [BOT] Login sequence finished.", color=Colors.Text.GREEN)
 
     trending_keywords = [
@@ -122,7 +123,7 @@ async def main():
         while True:
             cprint("[MAAL] Updating maal...", color=Colors.Text.YELLOW)
             # update_maal()
-            await update_from_trends(keywords=trending_keywords)
+            await update_from_trends(client=client, keywords=trending_keywords)
 
             # COUNTDOWN
             for i in range(NEWS_FETCH_INTERVAL, 0, -1):

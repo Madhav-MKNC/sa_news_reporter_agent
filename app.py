@@ -2,22 +2,28 @@ import os
 import json
 import shutil
 import asyncio
+from uuid import uuid4
 import pandas as pd
 import urllib.parse
 from datetime import datetime
 from collections import Counter
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 
+from twikit import Client
+
 # Import your existing modules
-from core.bot import update_from_trends
+from core.bot import update_from_trends, twikit_login
 from core.configs import NEWS_DATA_STORE_DIR
+from core.colored import cprint, Colors
 
 app = Flask(__name__)
-app.secret_key = "change_this_to_a_random_secret_key"  # Required for session
+app.secret_key = str(uuid4())
 
-# Ensure directory exists
-if not os.path.exists(NEWS_DATA_STORE_DIR):
-    os.makedirs(NEWS_DATA_STORE_DIR, exist_ok=True)
+
+# --- Auth ---
+client = Client('en-US')
+
+
 
 # --- HELPERS ---
 
@@ -188,7 +194,7 @@ def update_trends():
 
     # Run async function in sync route
     print(f"[keywords] {kws}")
-    asyncio.run(update_from_trends(keywords=kws))
+    asyncio.run(update_from_trends(client=client, keywords=kws))
     flash("Maal Updated Successfully!")
     return redirect(url_for('index'))
 
@@ -205,5 +211,10 @@ def delete_item(item_id):
     return redirect(url_for('index'))
 
 
-if __name__ == '__main__':
+async def main():
+    await twikit_login(client=client)
     app.run(debug=True, port=5000)
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
