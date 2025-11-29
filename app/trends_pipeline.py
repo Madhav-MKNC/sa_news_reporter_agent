@@ -1,15 +1,12 @@
 # trends_pipeline.py
+from dateutil import parser as dateparser
 import re
 import asyncio
 import json
 from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 
-from pytrends.request import TrendReq
 from twikit import Client, Tweet
-
-# trends_pipeline.py
-import re
 from pytrends.request import TrendReq
 from pytrends.exceptions import ResponseError
 
@@ -144,14 +141,10 @@ def make_raw_news_from_cluster(keyword: str, tweets: list, top_k=5):
         # "likes": sum(t["likes"] for t in scored),
         # "retweets": sum(t["retweets"] for t in scored),
         # "replies": sum(t["replies"] for t in scored),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": t["timestamp"],
         # "media_urls": media_urls,
         # "category_guess": guess_category(keyword, full_text),
-        "sources": [
-            {"url": t["url"], "author": t["author"],
-                "timestamp": t["timestamp"]}
-            for t in scored if t.get("url")
-        ],
+        "sources": [t["url"] for t in scored if t.get("url")],
         "keyword": keyword
     }
 
@@ -197,36 +190,61 @@ async def build_trends_news_items(client: Client, top_n_keywords=30, per_keyword
 # --- Function to search for trending news using Twikit ---
 
 
-async def search_trending_news_on_x(client: Client, per_keyword=5, keywords=[], min_like=20, min_rt=5, verbose=True):
+def normalize_created_at(created):
     """
-    Works like build_trends_news_items in I/O:
-      - Input: client, per_keyword, verbose (plus like/RT thresholds)
-      - Output: list of raw_news dicts (same schema as make_raw_news_from_cluster)
-    Internals: searches fixed trending hashtags instead of Google Trends.
+    Normalize Twitter created_at into a timezone-aware datetime.
+    Handles: str, datetime (tz-aware or naive), None.
     """
-    # keywords = [
-    #     "#BreakingNews",
-    #     "#Karnataka",
-    #     "#news",
-    #     "#WPLAuction",
-    #     "#WPL2026",
-    # ]
-    keywords = ["#BreakingNews", "#Karnataka", "#news"] or keywords
+    if created is None:
+        return None
+
+    # Case 1: string timestamp
+    if isinstance(created, str):
+        try:
+            dt = dateparser.parse(created)
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        except Exception:
+            return None
+
+    # Case 2: datetime
+    if isinstance(created, datetime):
+        return created if created.tzinfo else created.replace(tzinfo=timezone.utc)
+
+    # Unrecognized format → ignore
+    return None
+
+
+async def search_trending_news_on_x(
+    client: Client,
+    per_keyword=5,
+    keywords=[],
+    min_like=20,
+    min_rt=5,
+    verbose=True
+):
+    """
+    Searches trending hashtags on X/Twitter and returns raw news items.
+    """
+    # Default keywords if user doesn't override
+    keywords = keywords or ["#BreakingNews", "#Karnataka", "#news"]
 
     clusters = defaultdict(list)
 
     def decode_unicode(text):
-        """
-        Helper function to decode unicode escape sequences in text.
-        """
-        return bytes(text, "utf-8").decode("unicode_escape")
+        """Decode unicode escape sequences and emojis."""
+        try:
+            return bytes(text, "utf-8").decode("unicode_escape")
+        except Exception:
+            return text
 
     for keyword in keywords:
         try:
             tweets = await client.search_tweet(keyword, "Top", count=per_keyword)
             if verbose:
-                cprint(f" [TRENDING] Searching '{keyword}' -> {len(tweets) if tweets else 0} tweets.",
-                       color=Colors.Text.BLUE)
+                cprint(
+                    f" [TRENDING] Searching '{keyword}' -> {len(tweets) if tweets else 0} tweets.",
+                    color=Colors.Text.BLUE
+                )
         except Exception as e:
             if verbose:
                 cprint(
@@ -240,49 +258,53 @@ async def search_trending_news_on_x(client: Client, per_keyword=5, keywords=[], 
             try:
                 text = getattr(tw, "full_text", None) or getattr(
                     tw, "text", None)
+
                 if not text:
                     if verbose:
                         cprint(
                             f"   [SKIP] No text in tweet {tw.id}", color=Colors.Text.YELLOW)
                     continue
 
-                # --- SKIP OLD TWEETS (> 2 DAYS) ---
-                created = tw.created_at
-                if created:
-                    if created.tzinfo is None:
-                        created = created.replace(tzinfo=timezone.utc)
+                # --- Normalize timestamp ---
+                created = normalize_created_at(getattr(tw, "created_at", None))
 
-                    if created < datetime.now(timezone.utc) - timedelta(days=2):
-                        if verbose:
-                            cprint(f"   [SKIP] Too old tweet {tw.id} ({created})", color=Colors.Text.YELLOW)
-                        continue
+                # Skip tweets older than 2 days
+                if created and created < datetime.now(timezone.utc) - timedelta(days=2):
+                    if verbose:
+                        cprint(
+                            f"   [SKIP] Too old tweet {tw.id} ({created})", color=Colors.Text.YELLOW)
+                    continue
 
-                # Decode Unicode escape sequences (including emojis)
+                # Decode escapes / emojis
                 text = decode_unicode(text)
 
-                likes = tw.favorite_count or 0
-                rts = tw.retweet_count or 0
+                likes = getattr(tw, "favorite_count", 0) or 0
+                rts = getattr(tw, "retweet_count", 0) or 0
 
                 if likes < min_like and rts < min_rt:
                     if verbose:
                         cprint(
-                            f"   [SKIP] Low engagement {tw.id} (likes={likes}, rts={rts})", color=Colors.Text.YELLOW)
+                            f"   [SKIP] Low engagement {tw.id} (likes={likes}, rts={rts})",
+                            color=Colors.Text.YELLOW
+                        )
                     continue
 
                 if verbose:
                     cprint(
                         f"   [OK] Adding tweet {tw.id}", color=Colors.Text.GREEN)
 
+                # Add to cluster
                 clusters[keyword].append({
                     "id": str(tw.id),
                     "text": text.replace("\n", " ").strip(),
                     "author": tw.user.screen_name,
                     "likes": likes,
                     "retweets": rts,
-                    "replies": int(tw.reply_count or 0),
-                    "timestamp": (tw.created_at if isinstance(tw.created_at, str) else (tw.created_at.isoformat() if tw.created_at else None)),
+                    "replies": int(getattr(tw, "reply_count", 0) or 0),
+                    "timestamp": created.isoformat() if created else None,
                     "url": f"https://x.com/{tw.user.screen_name}/status/{tw.id}"
                 })
+
             except Exception as e:
                 cprint(
                     f"   [ERR] Failed to process tweet: {e}", color=Colors.Text.RED)
@@ -290,17 +312,25 @@ async def search_trending_news_on_x(client: Client, per_keyword=5, keywords=[], 
 
     if verbose:
         total = sum(len(v) for v in clusters.values())
-        cprint(f" [TWITTER] Retrieved a total of {total} tweets across {len(clusters)} keywords.",
-               color=Colors.Text.CYAN)
+        cprint(
+            f" [TWITTER] Retrieved a total of {total} tweets across {len(clusters)} keywords.",
+            color=Colors.Text.CYAN
+        )
 
+    # Build raw news items
     raw_items = []
     for kw, tws in clusters.items():
         if not tws:
             continue
-        raw_items.append(make_raw_news_from_cluster(
-            kw, tws, top_k=min(5, len(tws))))
+
+        raw_items.append(
+            make_raw_news_from_cluster(kw, tws, top_k=min(10, len(tws)))
+        )
+
         if verbose:
-            cprint(f" [CLUSTER] Keyword '{kw}' -> {len(tws)} tweets -> 1 raw news item.",
-                   color=Colors.Text.CYAN)
+            cprint(
+                f" [CLUSTER] Keyword '{kw}' -> {len(tws)} tweets -> 1 raw news item.",
+                color=Colors.Text.CYAN
+            )
 
     return raw_items

@@ -14,6 +14,7 @@ class NewsItemModel(BaseModel):
     content_str: str
     tags_list: Optional[List[str]] = []
     source_list: Optional[List[str]] = []
+    timestamp_str: str
     
     def create_dir(self):
         if not os.path.exists(NEWS_DATA_STORE_DIR):
@@ -27,7 +28,8 @@ class NewsItemModel(BaseModel):
             headline_str=data.get('headline_str'),
             content_str=data.get('content_str'),
             tags_list=data.get('tags_list', []),
-            source_list=data.get('source_list', [])
+            source_list=data.get('source_list', []),
+            timestamp_str=data.get('timestamp_str', datetime.now().isoformat())
         )
 
     def to_json(self) -> Dict[str, str]:
@@ -35,8 +37,9 @@ class NewsItemModel(BaseModel):
             "id": self.id,
             "headline_str": self.headline_str,
             "content_str": self.content_str,
-            "tags_list": " ".join(self.tags_list),
-            "source_list": " ".join(self.source_list)
+            "tags_list": self.tags_list,
+            "source_list": self.source_list,
+            "timestamp_str": self.timestamp_str
         }
 
     def save_json(self):

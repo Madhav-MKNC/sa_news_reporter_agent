@@ -67,7 +67,8 @@ def write_and_save_full_news(raw_news: dict, verbose=True):
     if verbose:
         cprint(f"[PARSER] Parsed News JSON:\n{json.dumps(dict(news_json), indent=4)}", color=Colors.Text.CYAN)
 
-    news_json['source_list'] = raw_news.get('source_list', [])
+    news_json['source_list'] = raw_news.get('sources', [])
+    news_json['timestamp_str'] = raw_news.get('timestamp', '')
     news_item = NewsItemModel.from_dict(news_json)
     news_item.create_dir()
     cprint(" [SYSTEM] Saving news data to disk...", color=Colors.Text.YELLOW)
@@ -90,7 +91,7 @@ def update_maal(verbose=True):
 
 async def update_from_trends(keywords=[], verbose=True):
     # raw_items = await build_trends_news_items(client, top_n_keywords=30, per_keyword=6)
-    raw_items = await search_trending_news_on_x(client, per_keyword=5, keywords=keywords, min_like=100, min_rt=10, verbose=verbose)
+    raw_items = await search_trending_news_on_x(client, per_keyword=10, keywords=keywords, min_like=100, min_rt=10, verbose=verbose)
     if verbose:
         cprint(f" [ENGINE] Retrieved {len(raw_items)} news items from trends.", color=Colors.Text.GREEN)
     for raw_news in raw_items:
