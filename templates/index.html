@@ -15,7 +15,7 @@
                 --card-bg: #0a0a0a;
                 --border-color: #333;
                 --text-color: #ededed;
-                --accent: #fff;
+                --accent: #79ff8bff;
             }
 
             body {
@@ -39,6 +39,8 @@
                 flex-direction: column;
                 overflow-y: auto;
                 flex-shrink: 0;
+                transition: transform 0.3s ease-in-out, left 0.3s ease-in-out;
+                z-index: 1001; /* Above overlay */
             }
 
             .main-content {
@@ -48,12 +50,26 @@
                 max-width: 1200px;
                 margin: 0 auto;
                 width: 100%;
+                position: relative;
+            }
+
+            /* Overlay for mobile sidebar */
+            .overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                z-index: 1000;
+                display: none;
+                backdrop-filter: blur(2px);
             }
 
             /* Components */
             h3 {
                 margin-top: 0;
-                color: #79ff8bff;
+                color: var(--accent);
             }
             .caption {
                 font-size: 0.8rem;
@@ -105,7 +121,7 @@
             }
 
             .btn-primary {
-                background-color: #79ff8bff;
+                background-color: var(--accent);
                 color: #000;
                 border: none;
                 font-weight: 600;
@@ -125,12 +141,26 @@
                 color: #fff;
             }
 
+            .sidebar-toggle-btn {
+                display: none; /* Hidden by default (Desktop) */
+                background: transparent;
+                border: 1px solid #333;
+                color: #fff;
+                font-size: 1.2rem;
+                padding: 5px 10px;
+                margin-right: 10px;
+            }
+            .sidebar-toggle-btn:hover {
+                border-color: var(--accent);
+                color: var(--accent);
+            }
+
             .btn-icon {
                 background: transparent;
                 border: none;
                 color: #666;
                 padding: 0 5px;
-                text-decoration: none; /* Added for link styling reset */
+                text-decoration: none;
                 display: inline-block;
             }
             .btn-icon:hover {
@@ -205,7 +235,7 @@
             .meta-mono {
                 font-family: "JetBrains Mono", monospace;
                 font-size: 1rem;
-                color: #79ff8bff;
+                color: var(--accent);
                 margin-bottom: 12px;
                 display: flex;
                 align-items: center;
@@ -287,11 +317,58 @@
                 font-size: 0.9rem;
                 text-align: center;
             }
+
+            /* --- MOBILE RESPONSIVENESS --- */
+            @media (max-width: 768px) {
+                /* Body and Overlay Setup */
+                .overlay.active {
+                    display: block;
+                }
+
+                /* Sidebar Positioning (Off-canvas) */
+                .sidebar {
+                    position: fixed;
+                    top: 0;
+                    left: -300px; /* Hidden off-screen */
+                    height: 100vh;
+                    width: 280px; /* Slightly smaller on mobile */
+                    box-shadow: 5px 0 15px rgba(0, 0, 0, 0.5);
+                }
+
+                /* Sidebar Active State */
+                .sidebar.active {
+                    left: 0;
+                }
+
+                /* Main Content */
+                .main-content {
+                    padding: 15px;
+                }
+
+                /* Card Layout: Stack vertically */
+                .card-grid {
+                    grid-template-columns: 1fr;
+                }
+
+                /* Header adjustments */
+                div[style*="display: flex; gap: 15px"] {
+                    flex-wrap: wrap;
+                }
+
+                /* Show Toggle Button */
+                .sidebar-toggle-btn {
+                    display: inline-block;
+                }
+
+                h3[style*="width: 100px"] {
+                    width: auto !important;
+                }
+            }
         </style>
     </head>
     <body>
         <!-- SIDEBAR -->
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <h3>⚡ SA News Reporter Agent</h3>
             <div class="caption">Storage: {{ store_dir }}</div>
 
@@ -304,7 +381,6 @@
                 </div>
 
                 <!-- Add New Keyword -->
-                <!-- Added ID for JS reference -->
                 <form
                     id="addKwForm"
                     action="{{ url_for('add_keyword') }}"
@@ -324,7 +400,6 @@
                 </form>
 
                 <!-- List / Edit Keywords -->
-                <!-- Added ID for JS reference -->
                 <div class="kw-list" id="kwListContainer">
                     {% if not keywords %}
                     <div style="color: #666; font-size: 0.8rem">
@@ -339,7 +414,6 @@
                             data-idx="{{ loop.index0 }}"
                             onchange="handleEditKeyword({{ loop.index0 }}, this.value)"
                         />
-                        <!-- Added onclick handler for local persistence + data-idx -->
                         <a
                             href="{{ url_for('remove_keyword', index=loop.index0) }}"
                             class="btn-icon"
@@ -399,6 +473,9 @@
             </div>
         </div>
 
+        <!-- OVERLAY (Click to close sidebar) -->
+        <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
         <!-- MAIN CONTENT -->
         <div class="main-content">
             <!-- Header -->
@@ -410,6 +487,11 @@
                     align-items: center;
                 "
             >
+                <!-- Mobile Sidebar Toggle Button -->
+                <button class="sidebar-toggle-btn" onclick="toggleSidebar()">
+                    ☰
+                </button>
+
                 <h3 style="margin: 0; width: 100px">Feed</h3>
 
                 <!-- Realtime Search Input -->
@@ -526,6 +608,14 @@
         <script>
             const STORAGE_KEY = "sa_news_editor_keywords";
 
+            // Sidebar Toggle Function
+            function toggleSidebar() {
+                const sidebar = document.getElementById("sidebar");
+                const overlay = document.getElementById("overlay");
+                sidebar.classList.toggle("active");
+                overlay.classList.toggle("active");
+            }
+
             // 1. Initialize: Load from LocalStorage or scrape DOM
             document.addEventListener("DOMContentLoaded", () => {
                 initKeywordStorage();
@@ -579,8 +669,6 @@
                 }
 
                 // Reconstruct HTML similar to Jinja2 template
-                // Note: We use generic placeholder for remove URL since we can't generate Jinja url in JS.
-                // We will handle the click event via JS to fetch the correct URL pattern or dynamic routing.
                 let html = "";
                 keywords.forEach((kw, index) => {
                     html += `
@@ -623,17 +711,6 @@
                     renderKeywordList(keywords);
 
                     // Sync with Backend
-                    // Since the original href was generated by Jinja2, we try to reconstruct
-                    // or fetch. If the original href pointed to a valid route, we can try to use it.
-                    // But if we re-rendered the list, the href is now "#".
-                    // We will try to hit the known route pattern: /remove_keyword/<index>
-                    // Note: This relies on the backend accepting the index relative to the *original* list
-                    // or identifying by value. Since indices shift, this is tricky with pure LS persistence.
-                    //
-                    // To be safe: We fetch to the backend using the VALUE instead of index if possible,
-                    // or just accept that LS is the UI truth and server sync might need a full "Run Update".
-                    // However, let's try to keep the original intent:
-
                     fetch(`/keyword/remove`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -683,7 +760,6 @@
             }
 
             // 4. Edit Logic (Overrides original function)
-            // The original HTML called updateKeyword(index, value).
             function handleEditKeyword(index, newValue) {
                 // Update LocalStorage
                 let keywords = JSON.parse(
